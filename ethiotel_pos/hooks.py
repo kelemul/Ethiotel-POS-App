@@ -9,7 +9,7 @@ app_license = "mit"
 # ------------------
 
 # required_apps = []
-
+required_apps = ["posawesome", "erpnext"]
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
 # 	{
@@ -27,7 +27,13 @@ app_license = "mit"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/ethiotel_pos/css/ethiotel_pos.css"
 # app_include_js = "/assets/ethiotel_pos/js/ethiotel_pos.js"
+app_include_css = "/assets/ethiotel_pos/css/ethiotel_branding.css"
+app_include_js = ["/assets/ethiotel_pos/js/navbar_main.js",
+                  "/assets/ethiotel_pos/js/navbar_drawer.js",
+                  ]
 
+# Add or update the after_migrate hook
+after_migrate = "ethiotel_pos.utils.workspace_setup.setup_tele_pos_workspace"
 # include js, css files in header of web template
 # web_include_css = "/assets/ethiotel_pos/css/ethiotel_pos.css"
 # web_include_js = "/assets/ethiotel_pos/js/ethiotel_pos.js"
