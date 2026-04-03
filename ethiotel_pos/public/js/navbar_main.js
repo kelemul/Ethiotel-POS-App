@@ -12,7 +12,7 @@ $(document).on('app_ready', function() {
         titleLight: 'EthioTel',
         titleBold: 'POS',
         primaryGreen: '#009639',
-        corpName: 'Ethiopian Telecommunication Corporation'
+        corpName: 'Ethio Telecom'
     };
 
     const observer = new MutationObserver((mutations) => {
