@@ -9,7 +9,7 @@ app_license = "mit"
 # ------------------
 
 # required_apps = []
-required_apps = ["posawesome", "erpnext"]
+required_apps = ["erpnext", "posawesome"]
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
 # 	{
@@ -33,7 +33,8 @@ app_include_js = ["/assets/ethiotel_pos/js/navbar_main.js",
                   ]
 
 # Add or update the after_migrate hook
-after_migrate = "ethiotel_pos.utils.workspace_setup.setup_tele_pos_workspace"
+after_migrate = "ethiotel_pos.workspace_setup.setup_tele_pos_workspace"
+after_install = "ethiotel_pos.workspace_setup.setup_tele_pos_workspace"
 # include js, css files in header of web template
 # web_include_css = "/assets/ethiotel_pos/css/ethiotel_pos.css"
 # web_include_js = "/assets/ethiotel_pos/js/ethiotel_pos.js"
@@ -47,7 +48,6 @@ after_migrate = "ethiotel_pos.utils.workspace_setup.setup_tele_pos_workspace"
 
 # include js in page
 # page_js = {"page" : "public/js/file.js"}
-
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}

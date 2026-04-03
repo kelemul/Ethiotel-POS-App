@@ -1,32 +1,13 @@
-# Ethio Telecom POS App
-
-A specialized Point of Sale application for **ethio telecom**, built on the Frappe Framework. This app acts as a wrapper for **ERPNext** and **POSAwesome** to provide a custom Ethio Telecom experience.
-
----
-
-### 🚀 Robust Installation Script
-
-Use this script to handle all dependencies (ERPNext, POSAwesome), build assets, and set up branding in one step. 
-
-#### 1. Create the installer
-In your `frappe-bench` root folder, run:
-`nano install_pos.sh`
-
-#### 2. Paste this script
-```bash
 #!/bin/bash
 
-# --- Configuration ---
 SITE=$1
-REPO_POS="[https://github.com/defendicon/POS-Awesome-V15.git](https://github.com/defendicon/POS-Awesome-V15.git)"
+REPO_POS="https://github.com/defendicon/POS-Awesome-V15.git"
 
-# --- Helper: Exit on Error ---
 fail() {
     echo -e "\n\e[31m[ERROR]\e[0m $1"
     exit 1
 }
 
-# --- Validation ---
 if [ -z "$SITE" ]; then
     echo "Usage: ./install_pos.sh [site-name]"
     exit 1
@@ -40,7 +21,7 @@ echo "----------------------------------------------------"
 echo " Starting Robust Ethio Telecom POS Installer"
 echo "----------------------------------------------------"
 
-# 1. Handle ERPNext (The Core Dependency)
+# 1. Handle ERPNext
 echo "Step 1: Checking ERPNext..."
 if [ ! -d "apps/erpnext" ]; then
     echo "ERPNext code missing from bench. Fetching..."
@@ -74,7 +55,7 @@ bench --site $SITE install-app posawesome || fail "Failed to install POSAwesome 
 echo "Step 3: Installing Ethio Telecom POS Wrapper..."
 bench --site $SITE install-app ethiotel_pos --force || fail "Failed to install ethiotel_pos."
 
-# 4. Build Assets (Crucial for Vue/CSS)
+# 4. Build Assets
 echo "Step 4: Building Assets..."
 echo "Building POSAwesome..."
 bench build --app posawesome || fail "Failed to build POSAwesome assets."
@@ -82,7 +63,7 @@ bench build --app posawesome || fail "Failed to build POSAwesome assets."
 echo "Building Ethio Telecom POS..."
 bench build --app ethiotel_pos || fail "Failed to build ethiotel_pos assets."
 
-# 5. Finalize and Branding
+# 5. Finalize
 echo "Step 5: Finalizing (Migrate & Branding)..."
 bench --site $SITE migrate || fail "Migration failed."
 
