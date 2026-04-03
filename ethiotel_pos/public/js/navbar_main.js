@@ -12,11 +12,15 @@ $(document).on('app_ready', function() {
         titleLight: 'EthioTel',
         titleBold: 'POS',
         primaryGreen: '#009639',
-        corpName: 'Ethio Telecom'
+        corpName: 'Ethio Telecom',
+        tabTitle: 'Tele POS'
     };
 
     const observer = new MutationObserver((mutations) => {
-        
+        // --- FEATURE 0: Tab Title Customization ---
+        if (document.title !== brandSettings.tabTitle) {
+            document.title = brandSettings.tabTitle;
+        }
         // --- FEATURE 1: Navbar Logo Injection ---
         const logoImg = document.querySelector('.pos-navbar-logo img');
         if (logoImg && !logoImg.src.includes(brandSettings.logo)) {
