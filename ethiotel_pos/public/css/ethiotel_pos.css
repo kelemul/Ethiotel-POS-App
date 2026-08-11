@@ -1,9 +1,6 @@
 @import url("/assets/ethiotel_pos/css/erp_pos.css");
 
-/* =========================================================================
-   EIMS "Ethiotel Invoice" / AdminLTE — Side Invoice POS theme
-   Target look: http://196.190.92.198/ItemCart/ItemCartSideInvoice
-   ========================================================================= */
+
 
 :root {
 	--eims-green: #1a7a4c;
@@ -23,15 +20,71 @@
 body {
 	background: var(--et-app-bg) !important;
 	background-attachment: fixed;
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* ---------- AdminLTE-style main navbar ---------- */
+/* =========================================================================
+   FULLSCREEN POS LAYOUT — hides ERP navbar/sidebar/page-head on POS page
+   ========================================================================= */
+body.ethiopos-fullscreen {
+	background: var(--et-app-bg) !important;
+	overflow-x: hidden;
+}
+
+body.ethiopos-fullscreen .ethiopos-page-container {
+	max-width: 100% !important;
+	width: 100% !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+body.ethiopos-fullscreen .ethiopos-layout-main {
+	padding: 0 !important;
+	margin: 0 !important;
+	min-height: 100vh !important;
+	width: 100% !important;
+	max-width: 100% !important;
+}
+
+body.ethiopos-fullscreen #page-ethiotel-pos,
+body.ethiopos-fullscreen [data-page-route='ethiotel-pos'] {
+	padding: 0 !important;
+	margin: 0 !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	min-height: 100vh !important;
+	background: var(--et-app-bg) !important;
+}
+
+body.ethiopos-fullscreen .page-wrapper {
+	padding: 0 !important;
+	margin: 0 !important;
+	width: 100% !important;
+}
+
+body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+	padding: 12px !important;
+}
+
+/* ---------- AdminLTE-style main navbar (hidden on POS page) ---------- */
 .navbar {
 	background: linear-gradient(90deg, var(--eims-green), var(--eims-green2)) !important;
 	border-bottom: 2px solid var(--eims-lime);
 }
 .navbar a, .navbar .navbar-right a { color: #fff !important; }
 .navbar .navbar-right .btn-secondary { background: rgba(255,255,255,.15); border-color: transparent; }
+
+/* ---------- Hide the default Frappe awesomebar on the POS page ---------- */
+body[data-route="ethiotel-pos"] .navbar .search-bar,
+body[data-route="ethiotel-pos"] .navbar .navbar-search,
+body[data-route="ethiotel-pos"] .navbar #navbar-search,
+body[data-route="ethiotel-pos"] .navbar .search-icon,
+body[data-route="ethiotel-pos"] .navbar [data-label="Search"] {
+	display: none !important;
+}
 
 /* ---------- Page header ---------- */
 .page-head { background: transparent !important; }
@@ -53,6 +106,12 @@ body {
 	--pos-accent-2: var(--eims-green2);
 	padding: 0 !important;
 	grid-gap: 12px !important;
+	gap: 12px !important;
+	min-height: 0 !important;
+	height: 100% !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	flex: 1 1 auto;
 }
 
 .point-of-sale-app section {
@@ -63,11 +122,163 @@ body {
 	overflow: hidden;
 }
 
+
+.point-of-sale-app {
+	display: grid !important;
+	grid-template-columns: minmax(320px, .9fr) minmax(0, 1.3fr);
+	grid-template-rows: minmax(0, 1fr);
+	gap: 12px;
+	align-items: stretch;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+}
+
+/* CART = entire LEFT column */
+.point-of-sale-app > .customer-cart-container {
+	grid-column: 1 / 2;
+	grid-row: 1 / -1;
+	min-height: 0;
+	min-width: 0;
+	height: 50%;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Every OTHER direct child (items-selector, item-details-container,
+   payment, recent-order-list, order-summary, etc.) goes in the RIGHT
+   column, stacked in a FLEX column so each takes its natural height. */
+.point-of-sale-app > :not(.customer-cart-container) {
+	grid-column: 2 / 3;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* Give the Item Selector priority in the right column — it should be the
+   tallest. Other cards below it shrink to content. */
+.point-of-sale-app > .items-selector {
+	display: flex !important;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	width: 100%;
+	height: auto;
+	visibility: visible !important;
+	opacity: 1 !important;
+}
+.point-of-sale-app > .items-selector,
+.point-of-sale-app > .items-selector * {
+	visibility: visible !important;
+}
+.point-of-sale-app > .item-details-container,
+.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+	min-height: 0;
+	min-width: 0;
+}
+
 /* ---------- Item selector (right pane) ---------- */
+.items-selector {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	min-width: 0;
+	width: 100%;
+}
 .items-selector .filter-section {
-	padding: 12px 14px 6px;
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: 8px;
+	padding: 10px 12px 8px;
 	background: var(--eims-soft);
 	border-bottom: 1px solid #e9ecef;
+	flex-shrink: 0;
+}
+.items-selector .filter-section .filter-head {
+	grid-column: span 12;
+}
+/* One-row filter bar: search box = 75% of card width, then barcode scan
+   icon, then Grid / List toggles — no prev/next navigation */
+.items-selector .filter-section .search-field {
+	grid-column: span 12;
+	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.items-selector .search-field > .frappe-control {
+	flex: 100%;
+	min-width: 300px;
+	max-width: 100%;
+
+}
+.items-selector .et-selector-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1 1 auto;
+	justify-content: flex-end;
+	min-width: 0;
+}
+.items-selector .et-selector-controls .barcode-scan-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border-radius: 4px;
+	border: 1px solid var(--eims-green);
+	background: #fff;
+	color: var(--eims-green2);
+	cursor: pointer;
+	flex-shrink: 0;
+	line-height: 0;
+	transition: background .12s ease, color .12s ease;
+}
+.items-selector .et-selector-controls .barcode-scan-btn:hover {
+	background: var(--eims-green);
+	color: #fff;
+}
+.items-selector .et-selector-controls .et-view-grid,
+.items-selector .et-selector-controls .et-view-list {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+.items-selector .et-selector-controls .et-view-grid.active,
+.items-selector .et-selector-controls .et-view-list.active {
+	background: var(--et-bar-grad) !important;
+	border-color: var(--eims-green) !important;
+	color: #fff !important;
+}
+
+/* Detail mode: when item-details panel is open + focused, shrink the cart
+   and give the rest of the space to the right column. On small screens this
+   does nothing. */
+@media (min-width: 768px) {
+	.point-of-sale-app.et-detail-mode {
+		grid-template-columns: minmax(260px, .65fr) minmax(0, 1.55fr) !important;
+	}
+	.point-of-sale-app.et-detail-mode > .customer-cart-container {
+		min-width: 0;
+		overflow: hidden;
+	}
+}
+
+/* Minimized selector: compact filter section so details panel can show */
+.items-selector.et-selector-minimized .filter-section {
+	grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+	padding: 8px 10px 6px;
+}
+.items-selector.et-selector-minimized .filter-section .search-field,
+.items-selector.et-selector-minimized .filter-section .filter-head {
+	grid-column: span 1 !important;
+	margin: 4px 0;
+}
+.items-container.et-minimized-grid {
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+	padding: 6px 10px 10px;
 }
 .items-selector .label {
 	color: var(--eims-green);
@@ -76,22 +287,212 @@ body {
 	letter-spacing: .04em;
 	font-size: 12px;
 }
-.items-selector .search-field input,
-.items-selector .item-group-field .frappe-control input {
+.items-selector .search-field input {
 	border: 1px solid #ced4da;
 	border-radius: 4px;
 }
-.items-selector .search-field input:focus,
-.items-selector .item-group-field .frappe-control input:focus {
+.items-selector .search-field input:focus {
 	border-color: var(--eims-green);
 	box-shadow: 0 0 0 .15rem rgba(26, 122, 76, .25);
 }
-.items-container { padding: 8px 12px 12px; }
+/* Item grid container — CRITICAL: must be grid with columns, otherwise
+   children render as stacked rows (only horizontal dividers visible) */
+.items-container {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+	gap: 8px;
+	padding: 8px 12px 12px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	align-content: start;
+}
+.items-container.list-view {
+	grid-template-columns: 1fr !important;
+	gap: 0;
+}
+
+/* =========================================================================
+   HORIZONTAL SCROLLABLE CATEGORY BAR — VERY TOP of item-selector container
+   ========================================================================= */
+.et-categories-topmost {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 12px 8px;
+	background: linear-gradient(180deg, var(--eims-green), var(--eims-green2));
+	border-bottom: 2px solid var(--eims-lime);
+	flex-shrink: 0;
+	width: 100%;
+	min-height: 54px;
+	position: relative;
+	z-index: 2;
+}
+
+.et-cat-scroll {
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255,255,255,.15);
+	border: 1px solid rgba(255,255,255,.28);
+	border-radius: 50%;
+	color: #fff;
+	cursor: pointer;
+	z-index: 2;
+	transition: background .12s ease, color .12s ease, border-color .12s ease, transform .12s ease;
+	user-select: none;
+}
+.et-cat-scroll:hover:not(:disabled) {
+	background: #fff;
+	border-color: #fff;
+	color: var(--eims-green2);
+	transform: scale(1.06);
+}
+.et-cat-scroll:disabled {
+	opacity: .35;
+	cursor: not-allowed;
+}
+
+.categories-boxes {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap !important;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 4px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-behavior: smooth;
+	-webkit-overflow-scrolling: touch;
+	flex: 1 1 auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255,255,255,.55) transparent;
+	min-height: 38px;
+}
+.categories-boxes::-webkit-scrollbar {
+	height: 4px;
+}
+.categories-boxes::-webkit-scrollbar-track {
+	background: rgba(255,255,255,.05);
+	border-radius: 4px;
+}
+.categories-boxes::-webkit-scrollbar-thumb {
+	background: rgba(255,255,255,.6);
+	border-radius: 4px;
+}
+.categories-boxes::-webkit-scrollbar-thumb:hover {
+	background: #fff;
+}
+
+/* Remove old pagination nav from previous version (safety) */
+.categories-boxes .et-categories-nav {
+	display: none !important;
+}
+.categories-boxes .et-categories-row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap !important;
+	gap: 6px;
+}
+
+.et-category-btn {
+	flex-shrink: 0;
+	padding: 6px 14px;
+	font-size: 12.5px;
+	font-weight: 600;
+	border: 1px solid rgba(255,255,255,.3);
+	background: rgba(255,255,255,.14);
+	color: #fff;
+	border-radius: 999px;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: all .15s ease;
+}
+.et-category-btn:hover {
+	background: rgba(255,255,255,.28);
+	border-color: #fff;
+	color: #fff;
+	transform: translateY(-1px);
+}
+.et-category-btn.active {
+	background: #fff !important;
+	color: var(--eims-green2) !important;
+	border-color: #fff !important;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, .25) !important;
+	transform: translateY(-1px);
+	font-weight: 700;
+}
+.et-category-btn.et-category-loading {
+	animation: et-pulse 1.6s infinite;
+}
+
+/* Item grid — responsive columns via CSS, NOT inline JS styles */
+.items-container {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+	gap: 8px;
+}
+.items-container.list-view {
+	grid-template-columns: none !important;
+	display: block !important;
+	padding: 0 !important;
+}
+
+.items-container.list-view .item-wrapper {
+	display: none !important;
+}
+
+.item-list-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0;
+	font-size: 0.92rem;
+}
+.item-list-table thead {
+	background: var(--eims-soft);
+}
+.item-list-table th,
+.item-list-table td {
+	padding: 12px 10px;
+	border-bottom: 1px solid #e9ecef;
+	text-align: left;
+	vertical-align: middle;
+}
+.item-list-table th {
+	color: var(--et-ink);
+	font-weight: 700;
+}
+.item-table-row:hover {
+	background: rgba(42, 124, 73, .05);
+}
+.item-table-name {
+	font-weight: 600;
+}
+.item-table-code {
+	font-size: 0.8rem;
+}
+.item-list-table td .indicator-pill {
+	margin: 0;
+}
+
+/* Medium screens — slightly larger cards */
+@media (min-width: 1400px) {
+	.items-container {
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+	}
+}
+
 .item-wrapper {
 	border: 1px solid #dee2e6 !important;
 	border-radius: 6px !important;
 	background: #fff;
 	transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+	cursor: pointer;
+	min-width: 0;
+	overflow: hidden;
 }
 .item-wrapper:hover {
 	border-color: var(--eims-green) !important;
@@ -115,8 +516,38 @@ body {
 	border-radius: 6px 6px 0 0;
 }
 
+/* ---------- Pagination / view / size controls ---------- */
+.et-selector-controls {
+	flex-wrap: wrap;
+}
+.et-selector-controls button.disabled,
+.et-selector-controls button:disabled {
+	opacity: .5;
+	cursor: not-allowed;
+}
+.et-selector-controls .et-page-info {
+	font-size: 12px;
+	color: var(--eims-green2);
+	font-weight: 600;
+	margin-left: 4px;
+}
+
 /* ---------- Cart (left pane, like EIMS side invoice table) ---------- */
-.cart-container { display: flex; flex-direction: column; }
+.cart-container { display: flex; flex-direction: column; min-height: 0; }
+.abs-cart-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	min-width: 0;
+	width: 100%;
+}
+.customer-cart-container,
+.item-details-container {
+	min-width: 0;
+	width: 100%;
+	overflow: hidden;
+}
 .cart-label {
 	color: var(--eims-green);
 	font-weight: 700;
@@ -124,6 +555,7 @@ body {
 	letter-spacing: .05em;
 	font-size: 12px;
 	padding: 12px 14px 0;
+	flex-shrink: 0;
 }
 .cart-header {
 	color: var(--et-soft, #6B7A86);
@@ -132,19 +564,129 @@ body {
 	letter-spacing: .03em;
 	padding: 8px 14px;
 	border-bottom: 1px solid var(--et-line, #E2E8ED);
+	flex-shrink: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 88px 76px 52px 88px 68px;
+	align-items: center;
+	gap: 8px;
 }
-.cart-items-section { flex: 1 1 auto; overflow-y: auto; }
-.item-cart-items .cart-item-wrapper {
+.cart-header > div {
+	overflow: hidden;
+	white-space: nowrap;
+	text-align: left;
+}
+.cart-items-section { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.item-cart-items .cart-item-wrapper,
+.cart-items-section .cart-item-wrapper {
 	border-left: 3px solid transparent;
 	transition: border-color .12s ease, background .12s ease;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 88px 76px 52px 88px 68px;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--et-line, #E2E8ED);
 }
-.item-cart-items .cart-item-wrapper:hover {
+.item-cart-items .cart-item-wrapper:hover,
+.cart-items-section .cart-item-wrapper:hover {
 	background: #f0f8f4;
 	border-left-color: var(--eims-green);
 }
+.item-name-desc {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.item-name-desc-text { min-width: 0; }
+.item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-qty-wrap { display: flex; align-items: center; gap: 2px; }
+.cart-unit, .cart-vat, .cart-total { white-space: nowrap; }
+.cart-qty-btn {
+	width: 22px;
+	height: 22px;
+	min-width: 22px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--eims-green);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--eims-green);
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+}
+.cart-qty-btn:disabled { opacity: .35; cursor: not-allowed; }
+.cart-qty-val {
+	font-weight: 600;
+	min-width: 36px;
+	text-align: center;
+	display: inline-flex;
+	align-items: baseline;
+	justify-content: center;
+	gap: 3px;
+}
+.cart-qty-uom { font-size: 10px; color: var(--et-soft, #6B7A86); font-weight: 400; }
+.cart-eye-btn,
+.cart-delete-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	border-radius: 4px;
+	color: var(--et-soft, #6B7A86);
+	cursor: pointer;
+	transition: color .12s ease, background .12s ease;
+}
+.cart-eye-btn:hover { color: var(--eims-green); background: #f0f8f4; }
+.cart-delete-btn:hover { color: #d64545; background: #fdf0f0; }
 .no-item-wrapper { color: var(--et-soft, #6B7A86) !important; }
 
+/* ---------- Discount control (percentage / value toggle) ---------- */
+.add-discount-field {
+	width: 100%;
+}
+.et-discount-control {
+	width: 100%;
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+.et-discount-control .frappe-control {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.et-discount-mode-btn {
+	min-width: 42px;
+	font-weight: 700;
+	border-radius: 4px !important;
+	color: var(--eims-green2) !important;
+	border-color: var(--eims-green) !important;
+	background: #fff !important;
+}
+.et-discount-mode-btn:hover {
+	background: var(--eims-green) !important;
+	color: #fff !important;
+}
+.edit-discount-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+.add-discount-wrapper {
+	cursor: pointer;
+}
+
 /* ---------- Cart totals & checkout ---------- */
+.cart-totals-section {
+	flex-shrink: 0;
+}
 .grand-total-container {
 	background: var(--et-bar-grad) !important;
 	border-radius: 8px !important;
@@ -159,16 +701,130 @@ body {
 	color: #fff !important;
 	border: none !important;
 	font-weight: 700 !important;
-	border-radius: 4px;
+	border-radius: 6px;
+	padding: 10px 14px !important;
 	transition: transform .12s ease, box-shadow .12s ease;
+	cursor: pointer;
 }
 .checkout-btn:hover {
 	transform: translateY(-1px) !important;
 	box-shadow: 0 4px 12px rgba(26, 122, 76, .35) !important;
 }
-.edit-cart-btn { color: var(--eims-green) !important; }
+.edit-cart-btn { color: var(--eims-green) !important; font-weight: 600 !important; cursor: pointer; }
+
+/* ---------- Cart print buttons (EIMS side-invoice pair) ---------- */
+.cart-print-btns {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+.cart-print-btn {
+	flex: 1;
+	text-align: center;
+	padding: 8px 6px;
+	border-radius: 6px;
+	font-weight: 700;
+	font-size: 12.5px;
+	cursor: pointer;
+	transition: transform .12s ease, box-shadow .12s ease;
+}
+.cart-print-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .25) !important;
+}
+.cart-print-btn.save-and-print-btn {
+	background: linear-gradient(120deg, var(--eims-green), #2fa16a) !important;
+	color: #fff !important;
+	border: none !important;
+}
+.cart-print-btn.print-invoice-btn {
+	background: #fff !important;
+	color: var(--eims-green) !important;
+	border: 1px solid var(--eims-green) !important;
+}
+
+/* ---------- Barcode camera scanner ---------- */
+.items-selector .filter-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 6px;
+	flex-wrap: wrap;
+}
+.barcode-scan-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+	border: none !important;
+	border-radius: 6px !important;
+	font-weight: 600 !important;
+	font-size: 12px !important;
+	padding: 4px 12px !important;
+	transition: transform .12s ease, box-shadow .12s ease;
+	cursor: pointer;
+}
+.barcode-scan-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .35) !important;
+}
+.barcode-scan-btn svg { width: 15px; height: 15px; }
+.et-scanner-area {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 0;
+}
+.et-scanner-video {
+	width: 100%;
+	max-width: 460px;
+	height: auto;
+	max-height: 320px;
+	background: #111;
+	border-radius: 8px;
+	object-fit: cover;
+}
+.et-scanner-status {
+	font-size: 13px;
+	color: var(--eims-green2);
+	font-weight: 600;
+}
+.et-scanner-history {
+	width: 100%;
+	max-width: 460px;
+	text-align: left;
+}
+.et-scanner-history-title {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--eims-green2);
+	margin-bottom: 4px;
+}
+.et-scanner-history-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 120px;
+	overflow-y: auto;
+}
+.et-scanner-history-item {
+	font-size: 12px;
+	padding: 4px 8px;
+	background: var(--eims-soft, #eef6f0);
+	border-radius: 4px;
+	color: var(--et-ink, #1A1F24);
+}
+.et-scanner-area:empty {
+	display: none;
+}
 
 /* ---------- Numpad ---------- */
+.numpad-section { flex-shrink: 0; }
 .numpad-container { gap: 6px; }
 .numpad-btn {
 	border-radius: 6px !important;
@@ -176,11 +832,67 @@ body {
 	background: #fff !important;
 	font-weight: 600 !important;
 	transition: transform .1s ease, background .12s ease;
+	cursor: pointer;
+	min-height: 42px !important;
 }
 .numpad-btn:hover {
 	background: #f0f8f4 !important;
 	border-color: var(--eims-green) !important;
 	transform: scale(1.03);
+}
+.numpad-btn.highlighted-numpad-btn {
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+	border-color: var(--eims-green) !important;
+}
+.numpad-btn.remove-btn {
+	background: #fef2f2 !important;
+	color: var(--eims-danger) !important;
+	border-color: #fecaca !important;
+}
+.numpad-btn.remove-btn:hover {
+	background: var(--eims-danger) !important;
+	color: #fff !important;
+}
+.numpad-totals {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 6px 4px 10px;
+	font-size: 12px;
+}
+.numpad-totals > span {
+	flex: 1 1 0;
+	min-width: 90px;
+	background: var(--eims-soft);
+	border-radius: 6px;
+	padding: 6px 8px;
+	font-weight: 600;
+	color: var(--eims-green2);
+}
+.numpad-totals span span {
+	color: #1a1f24;
+}
+
+/* ---------- Item details panel ---------- */
+.item-details-container {
+	min-height: 0;
+}
+.discount-section .item-rate {
+	color: #6c757d;
+	text-decoration: line-through;
+	font-size: 13px;
+	font-weight: 500;
+}
+.discount-section .item-discount {
+	display: inline-block;
+	background: var(--eims-danger);
+	color: #fff;
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 700;
+	margin-left: 6px;
 }
 
 /* ---------- Payment section ---------- */
@@ -189,6 +901,7 @@ body {
 .payment-button {
 	border-radius: 4px !important;
 	transition: transform .12s ease;
+	cursor: pointer;
 }
 .payment-button:hover { transform: translateY(-1px); }
 .payment-button.selected {
@@ -200,6 +913,7 @@ body {
 	border: 1px solid #dee2e6 !important;
 	border-radius: 6px;
 	transition: box-shadow .12s ease;
+	cursor: pointer;
 }
 .mode-of-payment:hover { box-shadow: 0 3px 10px rgba(26, 122, 76, .15) !important; }
 .mode-of-payment.selected { border: 2px solid var(--eims-green) !important; }
@@ -260,11 +974,6 @@ body:fullscreen .point-of-sale-app { padding: 1.5% !important; }
 
 @media print {
 	.navbar, .page-head, .page-actions, .sidebar-container { display: none !important; }
-}
-
-
-body {
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* ---------- Sidebar (desk) ---------- */
@@ -611,3 +1320,841 @@ body[data-list-view] .layout-main-section {
 .desk-onboarding .indicator-pill,
 .desk-onboarding .onboarding-title,
 .desk-onboarding .text-muted { color: #fff !important; }
+
+/* =========================================================================
+   ET POS LAYOUT — top bar, left sidebar DRAWER, persistent view containers
+   ========================================================================= */
+.et-pos-layout {
+	display: flex;
+	flex-direction: row;
+	gap: 12px;
+	align-items: stretch;
+	height: 100%;
+	min-height: 0;
+	width: 100%;
+}
+
+/* ---------- Left sidebar drawer (collapsible) ---------- */
+/* OPEN state (default): menu is shown */
+.et-pos-layout.et-sidebar-open .et-left-menu {
+	width: 200px;
+	min-width: 200px;
+	padding: 12px 10px;
+	opacity: 1;
+	border-width: 1px;
+	pointer-events: auto;
+	flex-basis: auto;
+	margin-right: 0;
+	display: block;
+}
+.et-pos-layout.et-sidebar-open .et-left-menu-inner {
+	opacity: 1;
+	width: 180px;
+}
+
+.et-left-menu {
+	background: #fff;
+	border: 1px solid #e6ece9;
+	border-radius: 8px;
+	flex-shrink: 0;
+	overflow: hidden;
+	transition: width .25s ease, padding .25s ease, flex .25s ease, margin .25s ease, opacity .2s ease, border-width .25s ease, min-width .25s ease;
+}
+.et-left-menu-inner {
+	transition: opacity .2s ease .05s;
+}
+.et-left-menu-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.et-left-menu-list .et-menu-item {
+	padding: 8px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--eims-green2);
+	font-weight: 600;
+	font-size: 13px;
+	transition: background .12s ease, color .12s ease, transform .12s ease;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.et-left-menu-list .et-menu-item:hover {
+	background: rgba(26,122,76,0.08);
+	transform: translateX(2px);
+}
+.et-left-menu-list .et-menu-item.active {
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .25) !important;
+}
+.et-left-menu-list .et-sign-out,
+.et-left-menu-list .et-close-shift {
+	margin-top: 8px;
+	border-top: 1px dashed #e6ece9;
+	padding-top: 12px;
+}
+.et-left-menu-list .et-close-shift { color: var(--eims-green2); }
+.et-left-menu-list .et-sign-out { color: var(--eims-danger); }
+
+/* ---- COLLAPSED state (drawer closed) ---- */
+.et-pos-layout.et-sidebar-collapsed .et-left-menu {
+	width: 0;
+	padding-left: 0;
+	padding-right: 0;
+	margin-right: 0;
+	flex-basis: 0;
+	opacity: 0;
+	border-width: 0;
+	pointer-events: none;
+}
+.et-pos-layout.et-sidebar-collapsed .et-left-menu-inner {
+	opacity: 0;
+}
+.et-pos-layout.et-sidebar-collapsed {
+	gap: 0;
+}
+
+/* ---------- Sidebar lock ---------- */
+.et-sidebar-lock-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 2px 8px;
+	margin-bottom: 6px;
+	border-bottom: 1px dashed #e6ece9;
+	color: var(--et-soft, #6B7A86);
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+}
+.et-left-menu .et-sidebar-lock {
+	color: var(--eims-green2);
+	padding: 4px;
+	cursor: pointer;
+}
+.et-topbar .et-sidebar-lock {
+	color: #fff;
+	opacity: .9;
+	cursor: pointer;
+}
+.et-sidebar-lock:hover {
+	opacity: 1;
+}
+.et-sidebar-lock.et-locked {
+	color: var(--eims-lime, #cdeea0);
+}
+.et-pos-layout.et-sidebar-locked .et-left-menu {
+	display: none;
+}
+.et-pos-layout.et-sidebar-locked .et-sidebar-toggle {
+	opacity: .4;
+	pointer-events: none;
+}
+
+.et-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+
+/* ---------- Top bar ---------- */
+.et-topbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; margin-bottom: 12px; background: linear-gradient(90deg, rgba(0,150,57,0.95), rgba(47,161,106,0.95)); color: #fff; border-radius: 8px; flex-wrap: wrap; row-gap: 8px; }
+.et-topbar-left { display: flex; align-items: center; gap: 12px; }
+.pos-navbar-logo img { height: 36px; width: auto; border-radius: 4px; }
+.et-topbar-right { display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+
+.et-icon {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: rgba(255,255,255,0.14);
+	border: none;
+	color: #fff;
+	padding: 7px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 12.5px;
+	font-weight: 600;
+	transition: background .12s ease, transform .12s ease;
+}
+.et-icon:hover { background: rgba(255,255,255,0.28); transform: translateY(-1px); }
+.et-icon svg { display: block; }
+
+/* ---------- Dropdowns (actions / profile) ---------- */
+.et-actions-dropdown, .et-profile-dropdown { position: relative; }
+.et-actions-menu, .et-profile-menu {
+	display: none;
+	position: absolute;
+	right: 0;
+	top: calc(100% + 6px);
+	background: #fff;
+	color: #111;
+	border: 1px solid #e9ecef;
+	list-style: none;
+	padding: 6px 0;
+	margin: 0;
+	border-radius: 6px;
+	min-width: 180px;
+	box-shadow: 0 10px 30px rgba(0,0,0,.15);
+	z-index: 9999;
+}
+.et-actions-menu li, .et-profile-menu li { padding: 8px 14px; cursor: pointer; font-weight: 500; font-size: 13px; }
+.et-actions-menu li:hover, .et-profile-menu li:hover { background: #f4f6f9; color: var(--eims-green2); }
+
+/* categories responsive wrap (kept for the item-selector's own boxes) */
+.et-nav-categories { flex-wrap: wrap; max-width: 720px; }
+
+/* ---------- Persistent view container ---------- */
+.et-view-container { flex: 1 1 auto; min-height: 0; display: flex; width: 100%; min-width: 0; }
+.et-view { display: none; width: 100%; min-width: 0; }
+.et-view-pos { display: flex; width: 100%; min-width: 0; }
+
+/* Non-POS views (dashboard, held orders, history, invoices, report) each get
+   one full-size card that fills the whole view area */
+.et-view-dashboard, .et-view-held, .et-view-history, .et-view-invoices, .et-view-report {
+	flex: 1 1 auto;
+	min-height: 0;
+	height: 100%;
+	background: #fff;
+	border: 1px solid #dee2e6;
+	border-radius: 8px;
+	box-shadow: 0 1px 6px rgba(0,0,0,.05);
+	padding: 16px;
+	overflow-y: auto;
+}
+.et-view-dashboard h4, .et-view-held h4, .et-view-history h4, .et-view-invoices h4, .et-view-report h4 {
+	color: var(--eims-green2);
+	font-weight: 700;
+	margin-bottom: 14px;
+}
+
+.et-empty-state {
+	color: #8d99a6;
+	text-align: center;
+	padding: 24px 0;
+	font-style: italic;
+}
+
+/* dashboard styles */
+.et-dashboard { display: flex; flex-direction: column; gap: 16px; }
+.et-dash-cards { display:flex; gap:12px; flex-wrap: wrap; }
+.et-dash-card {
+	flex: 1;
+	min-width: 160px;
+	background: var(--eims-soft);
+	padding: 14px;
+	border-radius: 8px;
+	font-weight: 600;
+	color: var(--eims-green2);
+}
+.et-dash-card span {
+	display: block;
+	font-size: 22px;
+	font-weight: 800;
+	margin-top: 4px;
+	background: var(--et-bar-grad);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+.et-dash-invoices, .et-held-list, .et-history-list, .et-invoices-list { background:#fff; padding:4px; border-radius:8px; }
+.et-dash-invoice-row, .et-held-row, .et-history-row, .et-invoice-row { padding:10px 8px; border-bottom:1px dashed #eef7f0; }
+.et-dash-invoice-row:last-child, .et-held-row:last-child, .et-history-row:last-child, .et-invoice-row:last-child { border-bottom:none; }
+
+.et-held-row, .et-invoice-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap: wrap; }
+.et-held-actions, .et-invoice-actions { display:flex; gap:8px; flex-wrap: wrap; }
+.et-held-left, .et-invoice-left { flex:1; min-width: 200px; }
+
+.btn { padding:6px 10px; border-radius:6px; font-weight:600; }
+.btn-default { background:#fff; border:1px solid #e6ece9; color:var(--eims-green2); }
+.btn-danger { background: #f8d7da; border:1px solid #f5c2c7; color:#842029; }
+
+/* ---------- Report view ---------- */
+.et-report-filters {
+	display: flex;
+	gap: 16px;
+	align-items: flex-end;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+.et-report-field { min-width: 160px; }
+.et-report-summary { margin-bottom: 16px; }
+.et-report-table table { width: 100%; }
+
+/* make categories look nicer */
+.et-category-btn { padding:6px 12px; font-size:13px; opacity:0.95; }
+.et-category-btn.active { background:#fff; box-shadow:0 6px 20px rgba(15,74,46,0.08); }
+
+/* =========================================================================
+   RESPONSIVE BREAKPOINTS — fully adaptive POS
+   ========================================================================= */
+
+/* Large screens — 2 column spread (cart left slightly wider, items right) */
+@media (min-width: 1400px) {
+	.point-of-sale-app {
+		grid-template-columns: minmax(580px, 1.35fr) minmax(0, 1fr) !important;
+	}
+}
+
+/* Medium screens — 2-column (slightly narrower cart) */
+@media (max-width: 1399px) and (min-width: 1024px) {
+	.point-of-sale-app {
+		grid-template-columns: minmax(520px, 1.2fr) minmax(0, 1fr) !important;
+	}
+}
+
+/* Tablet landscape / small laptop — 2 columns still, cart a bit narrower */
+@media (max-width: 1023px) and (min-width: 768px) {
+	body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+		padding: 8px !important;
+	}
+	.point-of-sale-app {
+		display: grid !important;
+		grid-template-columns: minmax(440px, 1.05fr) minmax(0, 1fr) !important;
+		grid-template-rows: minmax(0, 1fr) !important;
+		gap: 10px;
+	}
+
+	/* Compact cart columns on tablet */
+	.cart-header,
+	.item-cart-items .cart-item-wrapper,
+	.cart-items-section .cart-item-wrapper {
+		grid-template-columns: minmax(0, 1fr) 80px 68px 46px 78px 64px;
+		gap: 4px;
+	}
+
+	/* CART remains LEFT column, everything else stays RIGHT */
+	.point-of-sale-app > .customer-cart-container {
+		grid-column: 1 / 2 !important;
+		grid-row: 1 / -1 !important;
+	}
+	.point-of-sale-app > :not(.customer-cart-container) {
+		grid-column: 2 / 3 !important;
+	}
+
+	/* Adjust item grid for tablet — fewer, wider cards */
+	.items-container {
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+		gap: 6px;
+	}
+
+	/* Filter section — stack search on tablet */
+	.items-selector .filter-section .search-field {
+		grid-column: span 12 !important;
+	}
+
+	.barcode-scan-btn .btn-text { display: none; }
+	.barcode-scan-btn { padding: 4px 8px !important; }
+
+	.et-left-menu { display: none; }
+	.et-pos-layout { gap: 6px; }
+}
+
+/* Tablet portrait / large phone — stack vertically with scroll (cart first to quickly see totals) */
+@media (max-width: 767px) {
+	body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+		padding: 6px !important;
+	}
+
+	.point-of-sale-app {
+		display: flex !important;
+		flex-direction: column !important;
+		grid-template-columns: none !important;
+		grid-template-rows: none !important;
+		grid-template-areas: none !important;
+		min-height: auto !important;
+		height: auto !important;
+		gap: 8px !important;
+	}
+
+	/* Cancel the 2-column grid placement, let flex stack them in DOM order.
+	   Cart -> selector -> details/payment/summary  */
+	.point-of-sale-app > .customer-cart-container,
+	.point-of-sale-app > :not(.customer-cart-container) {
+		grid-column: unset !important;
+		grid-row: unset !important;
+		min-height: auto !important;
+		max-height: none !important;
+		height: auto !important;
+		order: unset !important;
+	}
+
+	/* Put cart visually FIRST */
+	.point-of-sale-app > .customer-cart-container { order: 1 !important; }
+	/* Items selector SECOND (so users scroll down to browse after viewing cart) */
+	.point-of-sale-app > .items-selector { order: 2 !important; }
+	/* Details, payment, summary last */
+	.point-of-sale-app > .item-details-container,
+	.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+		order: 3 !important;
+	}
+
+	/* Cart must be fully visible on mobile — height:auto so it never collapses,
+	   items list capped & scrollable, columns keep their full width */
+	.point-of-sale-app > .customer-cart-container,
+	.point-of-sale-app > .customer-cart-container .abs-cart-container {
+		height: auto !important;
+		min-height: 0 !important;
+		max-height: none !important;
+		width: 100% !important;
+	}
+	.point-of-sale-app > .customer-cart-container .cart-items-section {
+		flex: 0 0 auto;
+		max-height: 42vh;
+		overflow-y: auto;
+		overflow-x: auto;
+	}
+	.point-of-sale-app > .customer-cart-container .cart-header,
+	.point-of-sale-app > .customer-cart-container .cart-item-wrapper {
+		min-width: 460px;
+	}
+
+	/* Filter section — stack vertically on mobile */
+	.items-selector .filter-section {
+		grid-template-columns: 1fr !important;
+	}
+	.items-selector .filter-section .filter-head,
+	.items-selector .filter-section .search-field {
+		grid-column: span 1 !important;
+		margin: 4px 0 !important;
+	}
+
+	/* Item grid on mobile — 2-3 columns depending on width */
+	.items-container {
+		grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+		gap: 6px;
+		padding: 6px;
+	}
+
+	/* Horizontal categories: larger tap targets for touch */
+	.et-cat-scroll {
+		width: 40px;
+		height: 40px;
+		min-width: 40px;
+	}
+	.et-category-btn {
+		padding: 8px 16px;
+		font-size: 13px;
+	}
+
+	/* Item grid — fewer columns on mobile */
+	.items-container {
+		padding: 6px;
+	}
+
+	/* Cart section header — compact */
+	.cart-header {
+		font-size: 10.5px;
+		padding: 6px 10px;
+	}
+	.cart-label {
+		font-size: 11px;
+		padding: 10px 12px 0;
+	}
+
+	/* Numpad — smaller keys, compact totals */
+	.numpad-btn {
+		min-height: 44px !important;
+		font-size: 15px !important;
+	}
+	.numpad-totals > span {
+		font-size: 11px;
+		padding: 5px 6px;
+		min-width: 72px;
+	}
+	.numpad-totals {
+		gap: 4px;
+	}
+
+	/* Filter head — wrap on small screens */
+	.items-selector .filter-head {
+		flex-direction: row;
+	}
+	.items-selector .label {
+		font-size: 11px;
+	}
+
+	/* Payment section */
+	.payment-section { padding: 10px; }
+
+	.barcode-scan-btn {
+		padding: 4px 8px !important;
+		font-size: 11px !important;
+	}
+
+	.et-left-menu { display: none; }
+	.et-pos-layout { gap: 6px; }
+
+	/* Print buttons — stack on very small screens */
+	.cart-print-btns {
+		flex-direction: column;
+		gap: 6px;
+	}
+	.cart-print-btn {
+		padding: 10px 6px;
+		font-size: 13px;
+	}
+}
+
+/* Extra small phones (< 480px) */
+@media (max-width: 479px) {
+	body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+		padding: 4px !important;
+	}
+
+	.et-category-btn {
+		padding: 7px 14px;
+		font-size: 12.5px;
+	}
+	.categories-boxes {
+		gap: 4px;
+	}
+	.et-cat-scroll {
+		width: 36px;
+		height: 36px;
+		min-width: 36px;
+	}
+
+	.et-categories-topmost {
+		padding: 8px 8px 6px;
+		min-height: 48px;
+	}
+
+	.items-selector .filter-section {
+		padding: 8px 8px 6px;
+	}
+	.items-container {
+		padding: 6px 6px 10px;
+		/* 2 columns on very small phones */
+		grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)) !important;
+		gap: 5px;
+	}
+
+	/* Controls wrap on very small screens */
+	.et-selector-controls {
+		gap: 5px !important;
+	}
+	.et-selector-controls .et-page-info {
+		width: 100%;
+		order: -1;
+		margin-left: 0 !important;
+	}
+
+	.grand-total-container {
+		padding: 10px 12px !important;
+	}
+	.checkout-btn {
+		padding: 10px 12px !important;
+		font-size: 14px !important;
+	}
+}
+
+/* Touch-friendly hover/interactions for mobile — disable hover, use active states */
+@media (hover: none) and (pointer: coarse) {
+	.item-wrapper:hover,
+	.cart-item-wrapper:hover,
+	.mode-of-payment:hover,
+	.numpad-btn:hover,
+	.et-category-btn:hover,
+	.barcode-scan-btn:hover,
+	.checkout-btn:hover {
+		transform: none !important;
+	}
+	.item-wrapper:active {
+		background: #f0f8f4;
+		transform: scale(0.98);
+	}
+	.numpad-btn:active {
+		background: var(--et-bar-grad) !important;
+		color: #fff !important;
+		transform: scale(0.96);
+	}
+	.et-category-btn:active {
+		transform: scale(0.97);
+	}
+}
+
+/* =========================================================================
+   POS LAYOUT LOCK — overrides the stock ERPNext POS CSS that forces every
+   section to min-height:45rem / height:calc(100vh - 200px) and fixed
+   10-column grid spans. Without this the item cards render at the wrong
+   position/width and content clips. These rules win the cascade.
+   ========================================================================= */
+.point-of-sale-app {
+	display: grid !important;
+	grid-template-columns: minmax(480px, 1.1fr) minmax(0, 1fr) !important;
+	grid-template-rows: minmax(0, 1fr) !important;
+	gap: 12px !important;
+	align-items: stretch;
+	width: 100% !important;
+	max-width: 100% !important;
+	min-width: 0;
+	height: 100% !important;
+}
+
+/* Checkout state: two cards — cart | payment (item list hidden, item details is a modal) */
+.point-of-sale-app.et-checkout-mode {
+	grid-template-columns: minmax(420px, 1.1fr) minmax(0, 1.3fr) !important;
+}
+
+.point-of-sale-app.et-checkout-mode > .customer-cart-container {
+	grid-column: 1 / 2 !important;
+}
+.point-of-sale-app.et-checkout-mode > .payment-container,
+.point-of-sale-app.et-checkout-mode > section:not(.items-selector):not(.customer-cart-container) {
+	grid-column: 2 / 3 !important;
+}
+.point-of-sale-app.et-checkout-mode > .items-selector {
+	display: none !important;
+}
+
+.point-of-sale-app section {
+	min-height: 0 !important;
+	height: auto !important;
+	max-height: none !important;
+	overflow: hidden;
+}
+
+.point-of-sale-app > .customer-cart-container {
+	grid-column: 1 / 2 !important;
+	grid-row: 1 / -1 !important;
+	min-width: 0;
+	height: 100% !important;
+	display: flex !important;
+	flex-direction: column;
+}
+
+.point-of-sale-app > .items-selector {
+	grid-column: 2 / 3 !important;
+	display: flex !important;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	width: 100%;
+}
+
+.point-of-sale-app > .item-details-container,
+.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+	grid-column: 2 / 3 !important;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* Item cards — fluid auto-fill grid, never a fixed 4-column row */
+.point-of-sale-app > .items-selector > .items-container,
+.items-container {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+	grid-auto-rows: auto;
+	gap: 8px;
+	align-content: start;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	padding: 8px 12px 12px;
+}
+.point-of-sale-app > .items-selector > .items-container.list-view {
+	display: block !important;
+	grid-template-columns: none !important;
+	gap: 0;
+	padding: 0;
+	overflow-y: auto;
+}
+.items-container.list-view {
+	grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+	gap: 0;
+}
+
+/* Item card — contain its content, never overflow the cell */
+.point-of-sale-app > .items-selector > .items-container > .item-wrapper,
+.items-container > .item-wrapper {
+	min-width: 0;
+	width: 100%;
+	height: auto;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.items-container > .item-wrapper .item-img {
+	width: 100%;
+	height: auto;
+	object-fit: cover;
+}
+
+/* Filter section — fluid within the right column */
+.items-selector .filter-section {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+}
+.items-selector .filter-section .filter-head { grid-column: 1 / -1; }
+.items-selector .filter-section .search-field { grid-column: 1 / -1; min-width: 0; }
+
+/* =========================================================================
+   RESPONSIVE — full-window, fluid POS
+   ========================================================================= */
+@media (max-width: 1023px) and (min-width: 768px) {
+	.point-of-sale-app {
+		grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr) !important;
+	}
+	.point-of-sale-app.et-checkout-mode {
+		grid-template-columns: minmax(260px, 1fr) minmax(0, 1.4fr) !important;
+	}
+	.items-container,
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+	}
+}
+
+@media (max-width: 767px) {
+	.items-container.list-view {
+		grid-template-columns: none !important;
+		display: block !important;
+		padding: 0 !important;
+	}
+	.items-container.list-view .item-wrapper {
+		display: none !important;
+	}
+	.point-of-sale-app {
+		display: flex !important;
+		flex-direction: column !important;
+		height: auto !important;
+		min-height: 0 !important;
+		gap: 8px !important;
+	}
+	.point-of-sale-app > .customer-cart-container,
+	.point-of-sale-app > .items-selector,
+	.point-of-sale-app > .item-details-container,
+	.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+		grid-column: auto !important;
+		grid-row: auto !important;
+		width: 100% !important;
+		height: auto !important;
+		min-height: 0 !important;
+	}
+	.items-selector .filter-section .search-field {
+		grid-column: span 12 !important;
+	}
+	.items-container,
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+	}
+}
+
+@media (max-width: 479px) {
+	.items-selector .filter-section .search-field {
+		grid-column: 1 / -1 !important;
+	}
+	.items-container,
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)) !important;
+	}
+}
+
+/* Hide the ERPNext top navbar + sidebar + page header when the POS page is open */
+body[data-route="ethiotel-pos"] .navbar,
+body[data-route="ethiotel-pos"] .navbar-home,
+body[data-route="ethiotel-pos"] header.navbar,
+body[data-route="ethiotel-pos"] .navbar-container,
+body[data-route="ethiotel-pos"] .page-head,
+body[data-route="ethiotel-pos"] .layout-side-section,
+body[data-route="ethiotel-pos"] .sidebar,
+body[data-route="ethiotel-pos"] .sidebar-container {
+	display: none !important;
+}
+
+body[data-route="ethiotel-pos"] .page-container,
+body[data-route="ethiotel-pos"] .layout-main-section-wrapper,
+body[data-route="ethiotel-pos"] .layout-main-section {
+	max-width: 100% !important;
+	width: 100% !important;
+	padding: 0 !important;
+	margin: 0 !important;
+}
+body[data-route="ethiotel-pos"] #page-ethiotel-pos {
+	padding: 12px !important;
+	width: 100% !important;
+	max-width: 100% !important;
+}
+body[data-route="ethiotel-pos"] .layout-main-section {
+	min-height: calc(100vh - 24px) !important;
+	height: auto;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+/* Height chain: layout-main-section -> et-pos-layout -> et-main ->
+   et-view-container -> et-view-pos -> point-of-sale-app must all resolve
+   so the item grid + cart actually fill the window instead of collapsing. */
+body[data-route="ethiotel-pos"] .layout-main-section,
+body[data-route="ethiotel-pos"] .layout-main-section-wrapper {
+	display: flex;
+	flex-direction: column;
+}
+body[data-route="ethiotel-pos"] .et-pos-layout {
+	height: 100% !important;
+	flex: 1 1 auto;
+}
+body[data-route="ethiotel-pos"] .et-main,
+body[data-route="ethiotel-pos"] .et-view-container,
+body[data-route="ethiotel-pos"] .et-view-pos {
+	flex: 1 1 auto;
+	height: 100%;
+	min-height: 0;
+}
+body[data-route="ethiotel-pos"] .point-of-sale-app {
+	min-height: 0;
+	height: 100% !important;
+}
+
+/* ---------- Item details as modal overlay ---------- */
+.point-of-sale-app > .item-details-container {
+	position: fixed !important;
+	inset: 0 !important;
+	z-index: 2000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 100% !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	height: auto !important;
+	overflow: hidden !important;
+	padding: 20px;
+	border: none !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	background: rgba(13, 22, 18, .22) !important;
+	backdrop-filter: blur(2px);
+}
+.point-of-sale-app > .item-details-container .et-id-backdrop {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	cursor: default;
+}
+.point-of-sale-app > .item-details-container .et-id-modal-card {
+	position: relative;
+	z-index: 1;
+	width: min(580px, 100%);
+	max-height: 92vh;
+	overflow-y: auto;
+	background: #fff;
+	border-radius: 12px;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+	padding: 18px 22px;
+}
+.point-of-sale-app > .item-details-container .close-btn {
+	cursor: pointer;
+}
+
+/* ---------- Filter bar responsive ---------- */
+@media (max-width: 767px) {
+	.items-selector .filter-section .search-field {
+		flex-wrap: wrap;
+	}
+	.items-selector .search-field > .frappe-control {
+		flex-basis: 100%;
+	}
+	.items-selector .et-selector-controls {
+		justify-content: flex-start;
+	}
+}

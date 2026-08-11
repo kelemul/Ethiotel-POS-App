@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"cJigdSD9mh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tele POS</span>\",\"col\":12}},{\"id\":\"4D2sc3CbN3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tele POS App\",\"col\":3}},{\"id\":\"GHhQ3ILXlU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"EIRMS Settings\",\"col\":3}},{\"id\":\"nVBkn7nfDw\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-B_qEZqEA6\",\"type\":\"card\",\"data\":{\"card_name\":\"POS\",\"col\":4}},{\"id\":\"tsAHaUCd5l\",\"type\":\"card\",\"data\":{\"card_name\":\"Profile\",\"col\":4}},{\"id\":\"2-3HMkGou3\",\"type\":\"card\",\"data\":{\"card_name\":\"Shift\",\"col\":4}},{\"id\":\"posaCashMovementCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Cash Movement\",\"col\":4}},{\"id\":\"GdPtnrazDS\",\"type\":\"card\",\"data\":{\"card_name\":\"Delivery Charges\",\"col\":4}},{\"id\":\"cABO53xhGv\",\"type\":\"card\",\"data\":{\"card_name\":\"Offers &amp; Coupons\",\"col\":4}},{\"id\":\"ky5kZTey04\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"nyw_47HbbH\",\"type\":\"card\",\"data\":{\"card_name\":\"MoR Tasks\",\"col\":4}}]",
+ "content": "[{\"id\":\"cJigdSD9mh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tele POS</span>\",\"col\":12}},{\"id\":\"4D2sc3CbN3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tele POS App\",\"col\":3}},{\"id\":\"GHhQ3ILXlU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"EIRMS Settings\",\"col\":3}},{\"id\":\"t_9WzOG4kt\",\"type\":\"card\",\"data\":{\"card_name\":\"Ethiotel POS\",\"col\":4}},{\"id\":\"nVBkn7nfDw\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-B_qEZqEA6\",\"type\":\"card\",\"data\":{\"card_name\":\"POS\",\"col\":4}},{\"id\":\"tsAHaUCd5l\",\"type\":\"card\",\"data\":{\"card_name\":\"Profile\",\"col\":4}},{\"id\":\"2-3HMkGou3\",\"type\":\"card\",\"data\":{\"card_name\":\"Shift\",\"col\":4}},{\"id\":\"posaCashMovementCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Cash Movement\",\"col\":4}},{\"id\":\"GdPtnrazDS\",\"type\":\"card\",\"data\":{\"card_name\":\"Delivery Charges\",\"col\":4}},{\"id\":\"cABO53xhGv\",\"type\":\"card\",\"data\":{\"card_name\":\"Offers &amp; Coupons\",\"col\":4}},{\"id\":\"ky5kZTey04\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"nyw_47HbbH\",\"type\":\"card\",\"data\":{\"card_name\":\"MoR Tasks\",\"col\":4}}]",
  "creation": "2022-11-29 14:33:45.038200",
  "custom_blocks": [],
  "docstatus": 0,
@@ -268,10 +268,29 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Ethiotel POS",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "ethiotel-pos",
+   "link_count": 0,
+   "link_to": "ethiotel-pos",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-07-24 15:17:56.011618",
- "modified_by": "Administrator",
+ "modified": "2026-08-10 15:05:54.527106",
+ "modified_by": "cashier@gmail.com",
  "module": "Ethio Telecom POS App",
  "name": "Tele POS",
  "number_cards": [],

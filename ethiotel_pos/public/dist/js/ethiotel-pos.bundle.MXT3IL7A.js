@@ -385,11 +385,15 @@
       this.pos_profile = pos_profile;
       this.hide_images = settings.hide_images;
       this.auto_add_item = settings.auto_add_item_to_cart;
+      this.current_start = 0;
+      this.page_length = 200;
+      this.view_mode = "grid";
       this.inti_component();
     }
     inti_component() {
       this.prepare_dom();
       this.make_search_bar();
+      this.make_scan_button();
       this.load_items_data();
       this.bind_events();
       this.attach_shortcuts();
@@ -397,16 +401,25 @@
     prepare_dom() {
       this.wrapper.append(
         `<section class="items-selector">
+				<div class="et-categories-topmost">
+					<button class="et-cat-scroll et-cat-scroll-left" title="${__("Scroll left")}">
+						<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+					</button>
+					<div class="categories-boxes"></div>
+					<button class="et-cat-scroll et-cat-scroll-right" title="${__("Scroll right")}">
+						<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+					</button>
+				</div>
 				<div class="filter-section">
-					<div class="label">${__("All Items")}</div>
 					<div class="search-field"></div>
-					<div class="item-group-field"></div>
 				</div>
 				<div class="items-container"></div>
 			</section>`
       );
       this.$component = this.wrapper.find(".items-selector");
       this.$items_container = this.$component.find(".items-container");
+      this.$categories_wrapper = this.$component.find(".et-categories-topmost");
+      this.$categories_boxes = this.$component.find(".categories-boxes");
     }
     async load_items_data() {
       if (!this.item_group) {
@@ -423,27 +436,95 @@
         const res = await frappe.db.get_value("POS Profile", this.pos_profile, "selling_price_list");
         this.price_list = res.message.selling_price_list;
       }
-      this.get_items({}).then(({ message }) => {
+      this.current_start = 0;
+      this.get_items({ start: this.current_start }).then(({ message }) => {
         this.render_item_list(message.items);
+        this.update_pagination_state(message.items);
       });
     }
-    get_items({ start = 0, page_length = 40, search_term = "" }) {
+    get_items({ start = 0, page_length = 200, search_term = "" } = {}, no_freeze = false) {
       const doc = this.events.get_frm().doc;
       const price_list = doc && doc.selling_price_list || this.price_list;
       let { item_group, pos_profile } = this;
       !item_group && (item_group = this.parent_item_group);
       return frappe.call({
         method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_items",
-        freeze: true,
+        freeze: !no_freeze,
         args: { start, page_length, price_list, item_group, search_term, pos_profile }
       });
     }
     render_item_list(items) {
       this.$items_container.html("");
+      if (this.view_mode === "list") {
+        this.$items_container.addClass("list-view");
+        this.$items_container.html(`
+				<table class="item-list-table">
+					<thead>
+						<tr>
+							<th>${__("Item")}</th>
+							<th>${__("Barcode")}</th>
+							<th>${__("UOM")}</th>
+							<th>${__("Price")}</th>
+							<th>${__("Stock")}</th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+			`);
+        const $tbody = this.$items_container.find("tbody");
+        this.items = items || [];
+        items.forEach((item) => {
+          $tbody.append(this.get_item_table_row(item));
+        });
+        return;
+      } else {
+        this.$items_container.removeClass("list-view");
+      }
+      this.items = items || [];
       items.forEach((item) => {
         const item_html = this.get_item_html(item);
         this.$items_container.append(item_html);
       });
+    }
+    get_item_table_row(item) {
+      const { item_name, item_code, barcode, uom, price_list_rate, currency, actual_qty, is_stock_item, stock_uom } = item;
+      const precision2 = flt(price_list_rate, 2) % 1 != 0 ? 2 : 0;
+      let indicator_color = "";
+      let qty_to_display = actual_qty;
+      if (is_stock_item) {
+        indicator_color = actual_qty > 10 ? "green" : actual_qty <= 0 ? "red" : "orange";
+        if (Math.round(qty_to_display) > 999) {
+          qty_to_display = Math.round(qty_to_display) / 1e3;
+          qty_to_display = qty_to_display.toFixed(1) + "K";
+        }
+      } else {
+        qty_to_display = "";
+      }
+      return `<tr class="item-table-row"
+			data-item-code="${escape(item_code)}" data-serial-no="${escape(item.serial_no)}"
+			data-batch-no="${escape(item.batch_no)}" data-uom="${escape(uom)}"
+			data-rate="${escape(price_list_rate || 0)}"
+			data-stock-uom="${escape(stock_uom)}"
+			title="${item_name}">
+			<td>
+				<div class="item-table-name">${frappe.ellipsis(item_name, 36)}</div>
+				<div class="item-table-code text-muted">${item_code}</div>
+			</td>
+			<td>${barcode || ""}</td>
+			<td>${uom || ""}</td>
+			<td>${format_currency(price_list_rate, currency, precision2) || 0}</td>
+			<td><span class="indicator-pill whitespace-nowrap ${indicator_color}">${qty_to_display}</span></td>
+		</tr>`;
+    }
+    update_pagination_state(items) {
+      const count = (items || []).length;
+      const range_start = count ? this.current_start + 1 : 0;
+      const range_end = this.current_start + count;
+      this.$component.find(".et-page-info").text(
+        count ? __("Showing {0}-{1}", [range_start, range_end]) : __("No items")
+      );
+      this.$component.find(".et-prev-page").prop("disabled", this.current_start <= 0);
+      this.$component.find(".et-next-page").prop("disabled", count < this.page_length);
     }
     get_item_html(item) {
       const me = this;
@@ -504,7 +585,6 @@
     make_search_bar() {
       const me = this;
       this.$component.find(".search-field").html("");
-      this.$component.find(".item-group-field").html("");
       this.search_field = frappe.ui.form.make_control({
         df: {
           label: __("Search"),
@@ -514,33 +594,124 @@
         parent: this.$component.find(".search-field"),
         render_input: true
       });
-      this.item_group_field = frappe.ui.form.make_control({
-        df: {
-          label: __("Item Group"),
-          fieldtype: "Link",
-          options: "Item Group",
-          placeholder: __("Select item group"),
-          onchange: function() {
-            me.item_group = this.value;
-            !me.item_group && (me.item_group = me.parent_item_group);
-            me.filter_items();
-          },
-          get_query: function() {
-            const doc = me.events.get_frm().doc;
-            return {
-              query: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.item_group_query",
-              filters: {
-                pos_profile: doc ? doc.pos_profile : ""
-              }
-            };
-          }
-        },
-        parent: this.$component.find(".item-group-field"),
-        render_input: true
-      });
       this.search_field.toggle_label(false);
-      this.item_group_field.toggle_label(false);
       this.attach_clear_btn();
+      this.$component.find(".search-field").append(`
+			<div class="et-selector-controls">
+				<button class="barcode-scan-btn" title="${__("Scan barcode with camera")}">
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+						<circle cx="12" cy="13" r="4"></circle>
+					</svg>
+				</button>
+				<button class="btn btn-default et-view-grid active">${__("Grid")}</button>
+				<button class="btn btn-default et-view-list">${__("List")}</button>
+			</div>
+		`);
+      this.$component.on("click", ".et-view-grid", () => {
+        this.view_mode = "grid";
+        this.$component.find(".et-view-grid").addClass("active");
+        this.$component.find(".et-view-list").removeClass("active");
+        this.render_item_list(this.items);
+      });
+      this.$component.on("click", ".et-view-list", () => {
+        this.view_mode = "list";
+        this.$component.find(".et-view-list").addClass("active");
+        this.$component.find(".et-view-grid").removeClass("active");
+        this.render_item_list(this.items);
+      });
+      this.render_categories = async function() {
+        const doc = me.events.get_frm && me.events.get_frm() ? me.events.get_frm().doc : null;
+        const pos_profile = doc && doc.pos_profile || me.pos_profile;
+        let groups_raw = [];
+        try {
+          const res = await frappe.call({
+            method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.item_group_query",
+            args: {
+              doctype: "Item Group",
+              txt: "",
+              searchfield: "name",
+              start: 0,
+              page_len: 200,
+              filters: pos_profile ? { pos_profile } : {}
+            }
+          });
+          groups_raw = res && res.message || [];
+        } catch (e) {
+          console.warn("[POS] category fetch failed:", e);
+        }
+        me._categories = groups_raw.map((g) => {
+          if (!g)
+            return null;
+          if (Array.isArray(g))
+            return g[0];
+          return g.name || g;
+        }).filter(Boolean);
+        const $box = me.$categories_boxes || me.$component.find(".categories-boxes");
+        const $wrap = me.$categories_wrapper || me.$component.find(".et-categories-topmost");
+        const $leftBtn = $wrap.find(".et-cat-scroll-left");
+        const $rightBtn = $wrap.find(".et-cat-scroll-right");
+        const self = me;
+        function render_cats() {
+          $box.html("");
+          const $all = $(`<button class="et-category-btn ${!self.item_group ? "active" : ""}" data-group="">${__("All Items")}</button>`);
+          $all.on("click", () => {
+            self.item_group = void 0;
+            if (self.item_group_field)
+              self.item_group_field.set_value("");
+            render_cats();
+            self.filter_items && self.filter_items();
+          });
+          $box.append($all);
+          if (!self._categories || self._categories.length === 0) {
+            const $hint = $(`<button class="et-category-btn et-category-loading" style="background:#fff7ed;color:#b45309;border-color:#fde68a;">${__("Categories loading\u2026")}</button>`);
+            $box.append($hint);
+            setTimeout(() => self.render_categories(), 1200);
+          } else {
+            self._categories.forEach((name) => {
+              const safe = frappe.utils.escape_html(name);
+              const $el = $(`<button class="et-category-btn ${self.item_group === name ? "active" : ""}" data-group="${safe}">${safe}</button>`);
+              $el.on("click", () => {
+                self.item_group = name;
+                if (self.item_group_field)
+                  self.item_group_field.set_value(name);
+                render_cats();
+                self.filter_items && self.filter_items();
+              });
+              $box.append($el);
+            });
+          }
+          update_scroll_buttons();
+        }
+        function update_scroll_buttons() {
+          const el = $box[0];
+          if (!el)
+            return;
+          const overflow = el.scrollWidth > el.clientWidth + 10;
+          const canLeft = el.scrollLeft > 4;
+          const canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+          $wrap.css("display", "flex");
+          if (overflow) {
+            $leftBtn.css("display", "flex").prop("disabled", !canLeft).css("visibility", canLeft ? "visible" : "hidden");
+            $rightBtn.css("display", "flex").prop("disabled", !canRight).css("visibility", canRight ? "visible" : "hidden");
+          } else {
+            $leftBtn.css("display", "none");
+            $rightBtn.css("display", "none");
+          }
+        }
+        $box.off("scroll.et-cat").on("scroll.et-cat", () => update_scroll_buttons());
+        $leftBtn.off("click.et-cat").on("click.et-cat", () => {
+          $box[0].scrollBy({ left: -300, behavior: "smooth" });
+        });
+        $rightBtn.off("click.et-cat").on("click.et-cat", () => {
+          $box[0].scrollBy({ left: 300, behavior: "smooth" });
+        });
+        $(window).off("resize.et-cat").on("resize.et-cat", () => update_scroll_buttons());
+        render_cats();
+        setTimeout(() => update_scroll_buttons(), 200);
+        setTimeout(() => update_scroll_buttons(), 800);
+      };
+      this.render_categories();
     }
     attach_clear_btn() {
       this.search_field.$wrapper.find(".control-input").append(
@@ -555,6 +726,167 @@
         this.set_search_value("");
         this.search_field.set_focus();
       });
+    }
+    make_scan_button() {
+      this.$scan_btn = this.$component.find(".barcode-scan-btn");
+      this.$scan_btn.on("click", () => this.open_scanner());
+    }
+    open_scanner() {
+      if (this.scanner_open)
+        return;
+      if (!(window.BarcodeDetector || navigator.mediaDevices)) {
+        frappe.show_alert({
+          message: __("Camera barcode scanning is not supported in this browser."),
+          indicator: "orange"
+        });
+        return;
+      }
+      if (!window.BarcodeDetector) {
+        frappe.require("/assets/ethiotel_pos/js/vendor/barcode-detector.js", () => {
+          this.open_scanner();
+        });
+        return;
+      }
+      this.scanner_open = true;
+      this.last_detected_barcode = null;
+      this.scanner_history = [];
+      this.build_scanner_dialog();
+      this.start_camera();
+    }
+    build_scanner_dialog() {
+      const me = this;
+      this.scanner_dialog = new frappe.ui.Dialog({
+        title: __("Scan Barcode"),
+        fields: [
+          {
+            fieldname: "scanner_area",
+            fieldtype: "HTML",
+            options: `<div class="et-scanner-area">
+						<video class="et-scanner-video" autoplay playsinline muted></video>
+						<div class="et-scanner-status">${__("Point the camera at a barcode\u2026")}</div>
+						<div class="et-scanner-history"></div>
+					</div>`
+          }
+        ],
+        primary_action_label: __("Close"),
+        primary_action: () => {
+          me.close_scanner();
+        }
+      });
+      this.scanner_dialog.show();
+      this.$scanner_video = this.scanner_dialog.$wrapper.find(".et-scanner-video");
+      this.$scanner_status = this.scanner_dialog.$wrapper.find(".et-scanner-status");
+      this.$scanner_history = this.scanner_dialog.$wrapper.find(".et-scanner-history");
+    }
+    async start_camera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        this.scanner_stream = stream;
+        this.$scanner_video[0].srcObject = stream;
+        await this.$scanner_video[0].play();
+        this.detector = new BarcodeDetector({
+          formats: [
+            "code_128",
+            "code_39",
+            "code_93",
+            "codabar",
+            "ean_13",
+            "ean_8",
+            "itf",
+            "qr_code",
+            "data_matrix",
+            "pdf417"
+          ]
+        });
+        this.detect_loop();
+      } catch (err) {
+        frappe.show_alert({
+          message: __("Could not start camera: {0}", [err.name || err.message]),
+          indicator: "orange"
+        });
+        this.close_scanner();
+      }
+    }
+    detect_loop() {
+      if (!this.scanner_open || !this.detector)
+        return;
+      this.detector.detect(this.$scanner_video[0]).then((codes) => {
+        if (codes && codes.length) {
+          codes.forEach((code) => {
+            const barcode = code.rawValue;
+            if (barcode !== this.last_detected_barcode) {
+              this.last_detected_barcode = barcode;
+              this.$scanner_status.html(`${__("Detected:")} <b>${barcode}</b>`);
+              this.on_barcode_detected(barcode, true);
+            }
+          });
+          setTimeout(() => this.detect_loop(), 500);
+          return;
+        }
+        this.last_detected_barcode = null;
+        this.detect_loop();
+      }).catch(() => {
+        this.detect_loop();
+      });
+    }
+    async on_barcode_detected(barcode, keep_open = true) {
+      this.scan_barcode = barcode;
+      const { message } = await this.get_items({ search_term: barcode }, true);
+      const items = message && message.items || [];
+      if (items.length === 1) {
+        const item = items[0];
+        this.events.item_selected({
+          field: "qty",
+          value: "+1",
+          item: {
+            item_code: item.item_code,
+            batch_no: item.batch_no,
+            serial_no: item.serial_no,
+            uom: item.uom,
+            rate: item.price_list_rate,
+            stock_uom: item.stock_uom
+          }
+        });
+        frappe.utils.play_sound("submit");
+        this.update_scanner_history(barcode, item.item_name);
+        this.$scanner_status.html(
+          `${__("Added")} <b>${frappe.ellipsis(item.item_name, 22)}</b> \u2014 ${__("scan next\u2026")}`
+        );
+      } else if (items.length === 0) {
+        frappe.utils.play_sound("error");
+        this.$scanner_status.html(`${__("No item found for barcode")} <b>${barcode}</b>`);
+      }
+      if (!keep_open) {
+        this.close_scanner();
+      }
+    }
+    update_scanner_history(barcode, item_name) {
+      if (!this.$scanner_history)
+        return;
+      const label = item_name ? `${frappe.ellipsis(item_name, 20)} (${barcode})` : barcode;
+      this.scanner_history = this.scanner_history || [];
+      this.scanner_history.push(label);
+      const values = this.scanner_history.slice(-6).reverse();
+      this.$scanner_history.html(`
+			<div class="et-scanner-history-title">${__("Scanned")}</div>
+			<div class="et-scanner-history-list">${values.map((value) => `<div class="et-scanner-history-item">${frappe.utils.escape_html(value)}</div>`).join("")}
+			</div>
+		`);
+    }
+    close_scanner() {
+      this.scanner_open = false;
+      this.detector = null;
+      if (this.scanner_stream) {
+        this.scanner_stream.getTracks().forEach((t) => t.stop());
+        this.scanner_stream = null;
+      }
+      if (this.scanner_dialog) {
+        this.scanner_dialog.hide();
+        this.scanner_dialog = null;
+      }
     }
     set_search_value(value) {
       $(this.search_field.$input[0]).val(value).trigger("input");
@@ -598,7 +930,7 @@
           }
         }
       });
-      this.$component.on("click", ".item-wrapper", function() {
+      this.$component.on("click", ".item-wrapper, .item-table-row", function() {
         const $item = $(this);
         const item_code = unescape($item.attr("data-item-code"));
         let batch_no = unescape($item.attr("data-batch-no"));
@@ -641,15 +973,6 @@
         ignore_inputs: true,
         page: cur_page.page.page
       });
-      this.item_group_field.parent.attr("title", `${ctrl_label}+G`);
-      frappe.ui.keys.add_shortcut({
-        shortcut: "ctrl+g",
-        action: () => this.item_group_field.set_focus(),
-        condition: () => this.$component.is(":visible"),
-        description: __("Focus on Item Group filter"),
-        ignore_inputs: true,
-        page: cur_page.page.page
-      });
       frappe.ui.keys.on("enter", () => {
         const selector_is_visible = this.$component.is(":visible");
         if (!selector_is_visible || this.search_field.get_value() === "")
@@ -671,6 +994,8 @@
     }
     filter_items({ search_term = "" } = {}) {
       const selling_price_list = this.events.get_frm().doc.selling_price_list;
+      this.last_search_term = search_term;
+      this.current_start = 0;
       if (search_term) {
         search_term = search_term.toLowerCase();
         this.search_index = this.search_index || {};
@@ -679,6 +1004,7 @@
           const items = this.search_index[selling_price_list][search_term];
           this.items = items;
           this.render_item_list(items);
+          this.update_pagination_state(items);
           this.auto_add_item && this.search_field.$input[0].value && this.items.length == 1 && this.add_filtered_item_to_cart();
           return;
         }
@@ -690,6 +1016,7 @@
         }
         this.items = items;
         this.render_item_list(items);
+        this.update_pagination_state(items);
         this.auto_add_item && this.search_field.$input[0].value && this.items.length == 1 && this.add_filtered_item_to_cart();
       });
     }
@@ -698,10 +1025,14 @@
       this.set_search_value("");
     }
     resize_selector(minimize) {
-      minimize ? this.$component.find(".filter-section").css("grid-template-columns", "repeat(1, minmax(0, 1fr))") : this.$component.find(".filter-section").css("grid-template-columns", "repeat(12, minmax(0, 1fr))");
-      minimize ? this.$component.find(".search-field").css("margin", "var(--margin-sm) 0px") : this.$component.find(".search-field").css("margin", "0px var(--margin-sm)");
-      minimize ? this.$component.css("grid-column", "span 2 / span 2") : this.$component.css("grid-column", "span 6 / span 6");
-      minimize ? this.$items_container.css("grid-template-columns", "repeat(1, minmax(0, 1fr))") : this.$items_container.css("grid-template-columns", "repeat(4, minmax(0, 1fr))");
+      const $app = this.wrapper && this.wrapper.filter ? this.wrapper.filter(".point-of-sale-app") : $(this.wrapper).closest(".point-of-sale-app");
+      if ($app && $app.length) {
+        $app.toggleClass("et-detail-mode", !!minimize);
+      } else {
+        $(".point-of-sale-app").toggleClass("et-detail-mode", !!minimize);
+      }
+      this.$component.toggleClass("et-selector-minimized", !!minimize);
+      this.$items_container.toggleClass("et-minimized-grid", !!minimize);
     }
     toggle_component(show) {
       this.set_search_value("");
@@ -719,6 +1050,7 @@
       this.allowed_customer_groups = settings.customer_groups;
       this.allow_rate_change = settings.allow_rate_change;
       this.allow_discount_change = settings.allow_discount_change;
+      this.discount_mode = "percentage";
       this.init_component();
     }
     init_component() {
@@ -754,7 +1086,10 @@
 					<div class="cart-header">
 						<div class="name-header">${__("Item")}</div>
 						<div class="qty-header">${__("Quantity")}</div>
-						<div class="rate-amount-header">${__("Amount")}</div>
+						<div class="unit-header">${__("Unit")}</div>
+						<div class="vat-header">${__("VAT %")}</div>
+						<div class="total-header">${__("Total")}</div>
+						<div class="action-header" title="${__("Remove")}">\u2715</div>
 					</div>
 					<div class="cart-items-section"></div>
 					<div class="cart-totals-section"></div>
@@ -766,6 +1101,107 @@
       this.make_cart_totals_section();
       this.make_cart_items_section();
       this.make_cart_numpad();
+      this.bind_cart_row_actions();
+    }
+    bind_cart_row_actions() {
+      const me = this;
+      this.$cart_items_wrapper.off("click.cart-plus").on("click.cart-plus", ".cart-qty-plus", function(e) {
+        e.stopPropagation();
+        const $row = $(this).closest(".cart-item-wrapper");
+        const rowName = unescape($row.attr("data-row-name"));
+        me.update_qty_by_delta(rowName, 1);
+      });
+      this.$cart_items_wrapper.off("click.cart-minus").on("click.cart-minus", ".cart-qty-minus", function(e) {
+        e.stopPropagation();
+        const $row = $(this).closest(".cart-item-wrapper");
+        const rowName = unescape($row.attr("data-row-name"));
+        me.update_qty_by_delta(rowName, -1);
+      });
+      this.$cart_items_wrapper.off("click.cart-eye").on("click.cart-eye", ".cart-eye-btn", function(e) {
+        e.stopPropagation();
+        const $row = $(this).closest(".cart-item-wrapper");
+        const rowName = unescape($row.attr("data-row-name"));
+        me.open_cart_item_details(rowName);
+      });
+      this.$cart_items_wrapper.off("click.cart-delete").on("click.cart-delete", ".cart-delete-btn", function(e) {
+        e.stopPropagation();
+        const $row = $(this).closest(".cart-item-wrapper");
+        const rowName = unescape($row.attr("data-row-name"));
+        me.delete_cart_row(rowName);
+      });
+    }
+    open_cart_item_details(rowName) {
+      const frm = this.events.get_frm();
+      if (!frm || !frm.doc)
+        return;
+      const row = frm.doc.items.find((d) => d.name === rowName);
+      if (!row)
+        return;
+      const payment_section_hidden = !this.$totals_section.find(".edit-cart-btn").is(":visible");
+      if (!payment_section_hidden) {
+        this.$totals_section.find(".edit-cart-btn").click();
+      }
+      this.toggle_item_highlight(
+        this.$cart_items_wrapper.find(`.cart-item-wrapper[data-row-name='${escape(rowName)}']`)
+      );
+      this.numpad_value = "";
+      this.events.cart_item_clicked && this.events.cart_item_clicked({ name: rowName });
+    }
+    async update_qty_by_delta(rowName, delta) {
+      const frm = this.events.get_frm();
+      if (!frm || !frm.doc)
+        return;
+      const row = frm.doc.items.find((d) => d.name === rowName);
+      if (!row)
+        return;
+      const newQty = flt(row.qty) + flt(delta);
+      if (newQty <= 0) {
+        return this.delete_cart_row(rowName);
+      }
+      if (this.events && this.events.item_selected) {
+        const item = {
+          item_code: row.item_code,
+          batch_no: row.batch_no,
+          serial_no: row.serial_no,
+          uom: row.uom,
+          rate: row.rate,
+          stock_uom: row.stock_uom,
+          name: rowName
+        };
+        await this.events.item_selected({
+          field: "qty",
+          value: newQty,
+          item
+        });
+      } else {
+        frappe.model.set_value(row.doctype, rowName, "qty", newQty);
+      }
+    }
+    async delete_cart_row(rowName) {
+      const frm = this.events.get_frm();
+      if (!frm || !frm.doc)
+        return;
+      const row = frm.doc.items.find((d) => d.name === rowName);
+      if (!row)
+        return;
+      if (this.events && this.events.numpad_event) {
+        if (this.events.select_cart_item) {
+          this.events.select_cart_item(rowName);
+        }
+        this.$cart_items_wrapper.find(`.cart-item-wrapper[data-row-name='${escape(rowName)}']`).addClass("selected");
+        this.events.numpad_event("", "remove");
+      } else {
+        frappe.dom.freeze();
+        frappe.model.set_value(row.doctype, rowName, "qty", 0).then(() => {
+          frappe.model.clear_doc(row.doctype, rowName);
+          this.update_cart_html({ name: rowName }, true);
+          this.events && this.events.close_item_details && this.events.close_item_details();
+          frappe.dom.unfreeze();
+        }).catch((e) => {
+          console.log(e);
+          frappe.dom.unfreeze();
+        });
+      }
     }
     make_cart_items_section() {
       this.$cart_header = this.$component.find(".cart-header");
@@ -802,6 +1238,14 @@
 			<div class="grand-total-container">
 				<div>${__("Grand Total")}</div>
 				<div>0.00</div>
+			</div>
+			<div class="cart-print-btns">
+				<div class="cart-print-btn save-and-print-btn" title="${__("Save and print receipt")}">
+					${__("Save & Print")}
+				</div>
+				<div class="cart-print-btn print-invoice-btn" title="${__("Save and print invoice")}">
+					${__("Print Invoice")}
+				</div>
 			</div>
 			<div class="checkout-btn">${__("Checkout")}</div>
 			<div class="edit-cart-btn">${__("Edit Cart")}</div>`
@@ -856,15 +1300,14 @@
         me.toggle_customer_info(show);
       });
       this.$cart_items_wrapper.on("click", ".cart-item-wrapper", function() {
-        const $cart_item = $(this);
         me.toggle_item_highlight(this);
+        const $cart_item = $(this);
+        const item_row_name = unescape($cart_item.attr("data-row-name"));
+        me.events.select_cart_item && me.events.select_cart_item(item_row_name);
         const payment_section_hidden = !me.$totals_section.find(".edit-cart-btn").is(":visible");
         if (!payment_section_hidden) {
           me.$totals_section.find(".edit-cart-btn").click();
         }
-        const item_row_name = unescape($cart_item.attr("data-row-name"));
-        me.events.cart_item_clicked({ name: item_row_name });
-        this.numpad_value = "";
       });
       this.$component.on("click", ".checkout-btn", async function() {
         if ($(this).attr("style").indexOf("--blue-500") == -1)
@@ -873,6 +1316,12 @@
         me.toggle_checkout_btn(false);
         me.disable_customer_selection();
         me.allow_discount_change && me.$add_discount_elem.removeClass("d-none");
+      });
+      this.$totals_section.on("click", ".save-and-print-btn", () => {
+        me.events.save_and_print();
+      });
+      this.$totals_section.on("click", ".print-invoice-btn", () => {
+        me.events.print_invoice();
       });
       this.$totals_section.on("click", ".edit-cart-btn", () => {
         this.events.edit_cart();
@@ -1045,42 +1494,78 @@
     }
     show_discount_control() {
       this.$add_discount_elem.css({ padding: "0px", border: "none" });
-      this.$add_discount_elem.html(`<div class="add-discount-field"></div>`);
+      this.$add_discount_elem.html(
+        `<div class="add-discount-field">
+				<div class="et-discount-control" style="display:flex;gap:6px;align-items:center;width:100%"></div>
+			</div>`
+      );
       const me = this;
       const frm = me.events.get_frm();
-      let discount = frm.doc.additional_discount_percentage;
-      this.discount_field = frappe.ui.form.make_control({
-        df: {
-          label: __("Discount"),
-          fieldtype: "Data",
-          placeholder: discount ? discount + "%" : __("Enter discount percentage."),
-          input_class: "input-xs",
-          onchange: function() {
-            this.value = flt(this.value);
-            if (this.value > 100) {
-              frappe.msgprint({
-                title: __("Invalid Discount"),
-                indicator: "red",
-                message: __("Discount cannot be greater than 100%.")
-              });
-              this.value = 0;
+      const current_value = () => this.discount_mode === "percentage" ? frm.doc.additional_discount_percentage : frm.doc.discount_amount;
+      const make_field = () => {
+        this.discount_field = frappe.ui.form.make_control({
+          df: {
+            label: __("Discount"),
+            fieldtype: "Data",
+            placeholder: this.discount_mode === "percentage" ? __("Enter discount percentage.") : __("Enter discount amount"),
+            input_class: "input-xs",
+            onchange: function() {
+              this.value = flt(this.value);
+              const set_active_field = me.discount_mode === "percentage" ? frappe.model.set_value(
+                frm.doc.doctype,
+                frm.doc.name,
+                "additional_discount_percentage",
+                flt(this.value)
+              ) : frappe.model.set_value(
+                frm.doc.doctype,
+                frm.doc.name,
+                "discount_amount",
+                flt(this.value)
+              );
+              if (me.discount_mode === "percentage" && this.value > 100) {
+                frappe.msgprint({
+                  title: __("Invalid Discount"),
+                  indicator: "red",
+                  message: __("Discount cannot be greater than 100%.")
+                });
+                this.value = 0;
+                frappe.model.set_value(
+                  frm.doc.doctype,
+                  frm.doc.name,
+                  "additional_discount_percentage",
+                  0
+                );
+              }
+              const other_field = me.discount_mode === "percentage" ? "discount_amount" : "additional_discount_percentage";
+              Promise.resolve(set_active_field).then(() => frappe.model.set_value(frm.doc.doctype, frm.doc.name, other_field, 0)).then(() => me.update_totals_section(frm)).then(() => me.hide_discount_control(this.value));
             }
-            frappe.model.set_value(
-              frm.doc.doctype,
-              frm.doc.name,
-              "additional_discount_percentage",
-              flt(this.value)
-            );
-            me.hide_discount_control(this.value);
-          }
-        },
-        parent: this.$add_discount_elem.find(".add-discount-field"),
-        render_input: true
+          },
+          parent: this.$add_discount_elem.find(".add-discount-field .et-discount-control"),
+          render_input: true
+        });
+        this.discount_field.toggle_label(false);
+        this.discount_field.set_value(current_value() || "");
+        this.discount_field.set_focus();
+      };
+      make_field();
+      const $mode_btn = $(
+        `<button type="button" class="et-discount-mode-btn btn btn-default btn-xs" title="${__(
+          "Toggle discount mode"
+        )}">${this.discount_mode === "percentage" ? "%" : "amt"}</button>`
+      );
+      this.$add_discount_elem.find(".add-discount-field .et-discount-control").prepend($mode_btn);
+      $mode_btn.on("click", () => {
+        const leaving_field = this.discount_mode === "percentage" ? "additional_discount_percentage" : "discount_amount";
+        this.discount_mode = this.discount_mode === "percentage" ? "value" : "percentage";
+        frappe.model.set_value(frm.doc.doctype, frm.doc.name, leaving_field, 0).then(() => {
+          this.update_totals_section(frm);
+          this.show_discount_control();
+        });
       });
-      this.discount_field.toggle_label(false);
-      this.discount_field.set_focus();
     }
     hide_discount_control(discount) {
+      const frm = this.events.get_frm();
+      const currency = frm && frm.doc ? frm.doc.currency : void 0;
       if (!flt(discount)) {
         this.$add_discount_elem.css({
           border: "1px dashed var(--gray-500)",
@@ -1089,13 +1574,14 @@
         this.$add_discount_elem.html(`${this.get_discount_icon()} ${__("Add Discount")}`);
         this.discount_field = void 0;
       } else {
+        const label = this.discount_mode === "percentage" ? `${String(discount).bold()}%` : format_currency(discount, currency);
         this.$add_discount_elem.css({
           border: "1px dashed var(--dark-green-500)",
           padding: "var(--padding-sm) var(--padding-md)"
         });
         this.$add_discount_elem.html(
           `<div class="edit-discount-btn">
-					${this.get_discount_icon()} ${__("Additional")}&nbsp;${String(discount).bold()}% ${__("discount applied")}
+					${this.get_discount_icon()} ${label} ${__("discount applied")}
 				</div>`
         );
       }
@@ -1208,72 +1694,115 @@
       this.update_empty_cart_section(no_of_cart_items);
     }
     render_cart_item(item_data, $item_to_update) {
-      const currency = this.events.get_frm().doc.currency;
+      const frm = this.events.get_frm();
+      const currency = frm.doc.currency;
       const me = this;
       if (!$item_to_update.length) {
         this.$cart_items_wrapper.append(
-          `<div class="cart-item-wrapper" data-row-name="${escape(item_data.name)}"></div>
-				<div class="seperator"></div>`
+          `<div class="cart-item-wrapper" data-row-name="${escape(item_data.name)}"></div>`
         );
         $item_to_update = this.get_cart_item(item_data);
       }
-      $item_to_update.html(
-        `${get_item_image_html()}
+      const descriptionHtml = get_description_html();
+      const imgHtml = get_item_image_html();
+      const vatPct = get_vat_pct();
+      const unitRate = flt(item_data.rate) || 0;
+      const lineTotal = flt(item_data.amount) || 0;
+      const qty = flt(item_data.qty) || 0;
+      $item_to_update.html(`
 			<div class="item-name-desc">
-				<div class="item-name">
-					${item_data.item_name}
+				${imgHtml}
+				<div class="item-name-desc-text">
+					<div class="item-name" title="${frappe.utils.escape_html(item_data.item_name || "")}">
+						${frappe.utils.escape_html(item_data.item_name)}
+					</div>
+					${descriptionHtml}
 				</div>
-				${get_description_html()}
 			</div>
-			${get_rate_discount_html()}`
-      );
-      set_dynamic_rate_header_width();
+
+			<div class="cart-qty-wrap">
+				<button class="cart-qty-btn cart-qty-minus" type="button" title="${__("Decrease")}" ${qty <= 1 ? "disabled" : ""}>
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				</button>
+				<span class="cart-qty-val">${qty}<span class="cart-qty-uom">${frappe.utils.escape_html(item_data.uom || "")}</span></span>
+				<button class="cart-qty-btn cart-qty-plus" type="button" title="${__("Increase")}">
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				</button>
+			</div>
+
+			<div class="cart-unit">${format_currency(unitRate, currency)}</div>
+
+			<div class="cart-vat">${vatPct}</div>
+
+			<div class="cart-total">${format_currency(lineTotal, currency)}</div>
+
+			<div class="cart-actions">
+				<button class="cart-eye-btn" type="button" title="${__("View item details")}">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+						<circle cx="12" cy="12" r="3"></circle>
+					</svg>
+				</button>
+				<button class="cart-delete-btn" type="button" title="${__("Remove item")}">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="3 6 5 6 21 6"></polyline>
+						<path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path>
+						<path d="M10 11v6M14 11v6"></path>
+						<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+					</svg>
+				</button>
+			</div>
+		`);
       function set_dynamic_rate_header_width() {
-        const rate_cols = Array.from(me.$cart_items_wrapper.find(".item-rate-amount"));
-        me.$cart_header.find(".rate-amount-header").css("width", "");
-        me.$cart_items_wrapper.find(".item-rate-amount").css("width", "");
-        let max_width = rate_cols.reduce((max_width2, elm) => {
-          if ($(elm).width() > max_width2)
-            max_width2 = $(elm).width();
-          return max_width2;
-        }, 0);
-        max_width += 1;
-        if (max_width == 1)
-          max_width = "";
-        me.$cart_header.find(".rate-amount-header").css("width", max_width);
-        me.$cart_items_wrapper.find(".item-rate-amount").css("width", max_width);
+        return;
       }
-      function get_rate_discount_html() {
-        if (item_data.rate && item_data.amount && item_data.rate !== item_data.amount) {
-          return `
-					<div class="item-qty-rate">
-						<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
-						<div class="item-rate-amount">
-							<div class="item-rate">${format_currency(item_data.amount, currency)}</div>
-							<div class="item-amount">${format_currency(item_data.rate, currency)}</div>
-						</div>
-					</div>`;
-        } else {
-          return `
-					<div class="item-qty-rate">
-						<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
-						<div class="item-rate-amount">
-							<div class="item-rate">${format_currency(item_data.rate, currency)}</div>
-						</div>
-					</div>`;
+      set_dynamic_rate_header_width();
+      function get_vat_pct() {
+        const itr = item_data.item_tax_rate;
+        if (itr) {
+          let totalRate = 0;
+          if (typeof itr === "string" && itr.trim()) {
+            try {
+              const o = JSON.parse(itr);
+              Object.values(o).forEach((v) => totalRate += flt(v));
+            } catch (_) {
+            }
+          } else if (typeof itr === "object") {
+            Object.values(itr).forEach((v) => totalRate += flt(v));
+          }
+          if (totalRate > 0) {
+            return `${totalRate.toFixed(totalRate % 1 === 0 ? 0 : 1)}%`;
+          }
         }
+        const taxes = frm && frm.doc ? frm.doc.taxes : [];
+        if (taxes && taxes.length) {
+          const taxRow = taxes.find((t) => flt(t.tax_amount) > 0 && t.charge_type === "On Net Total");
+          if (taxRow) {
+            const rate = flt(taxRow.rate);
+            if (rate > 0)
+              return `${rate.toFixed(rate % 1 === 0 ? 0 : 1)}%`;
+          }
+          const totalTax = taxes.reduce((s, t) => s + flt(t.tax_amount), 0);
+          const netTotal = flt(frm.doc.total);
+          if (totalTax > 0 && netTotal > 0) {
+            const pct = totalTax / netTotal * 100;
+            return `${pct.toFixed(1)}%`;
+          }
+        }
+        return "\u2014";
       }
       function get_description_html() {
         if (item_data.description) {
-          if (item_data.description.indexOf("<div>") != -1) {
+          let desc = item_data.description;
+          if (desc.indexOf("<div>") != -1) {
             try {
-              item_data.description = $(item_data.description).text();
+              desc = $(desc).text();
             } catch (error) {
-              item_data.description = item_data.description.replace(/<div>/g, " ").replace(/<\/div>/g, " ").replace(/ +/g, " ");
+              desc = desc.replace(/<div>/g, " ").replace(/<\/div>/g, " ").replace(/ +/g, " ");
             }
           }
-          item_data.description = frappe.ellipsis(item_data.description, 45);
-          return `<div class="item-desc">${item_data.description}</div>`;
+          desc = frappe.ellipsis(desc, 50);
+          return `<div class="item-desc">${frappe.utils.escape_html(desc)}</div>`;
         }
         return ``;
       }
@@ -1282,13 +1811,11 @@
         if (!me.hide_images && image) {
           return `
 					<div class="item-image">
-						<img
-							onerror="cur_pos.cart.handle_broken_image(this)"
-							src="${image}" alt="${frappe.get_abbr(item_name)}"">
+						<img onerror="cur_pos.cart.handle_broken_image(this)"
+							src="${frappe.utils.escape_html(image)}" alt="${frappe.get_abbr(item_name)}">
 					</div>`;
-        } else {
-          return `<div class="item-image item-abbr">${frappe.get_abbr(item_name)}</div>`;
         }
+        return `<div class="item-image item-abbr">${frappe.get_abbr(item_name)}</div>`;
       }
     }
     handle_broken_image($img) {
@@ -1340,8 +1867,15 @@
     }
     update_empty_cart_section(no_of_cart_items) {
       const $no_item_element = this.$cart_items_wrapper.find(".no-item-wrapper");
-      no_of_cart_items > 0 && $no_item_element && $no_item_element.remove() && this.$cart_header.css("display", "flex");
-      no_of_cart_items === 0 && !$no_item_element.length && this.make_no_items_placeholder();
+      if (no_of_cart_items > 0) {
+        if ($no_item_element.length) {
+          $no_item_element.remove();
+        }
+        this.$cart_header.css("display", "");
+        this.$cart_header.show();
+      } else if (!$no_item_element.length) {
+        this.make_no_items_placeholder();
+      }
     }
     on_numpad_event($btn) {
       const current_action = $btn.attr("data-button-value");
@@ -1630,7 +2164,13 @@
         this.make_no_items_placeholder();
         this.highlight_checkout_btn(false);
       }
-      this.hide_discount_control(frm.doc.additional_discount_percentage);
+      if (flt(frm.doc.discount_amount)) {
+        this.discount_mode = "value";
+        this.hide_discount_control(frm.doc.discount_amount);
+      } else {
+        this.discount_mode = "percentage";
+        this.hide_discount_control(frm.doc.additional_discount_percentage);
+      }
       this.update_totals_section(frm);
       if (frm.doc.docstatus === 1) {
         this.$totals_section.find(".checkout-btn").css("display", "none");
@@ -1664,11 +2204,15 @@
       this.attach_shortcuts();
     }
     prepare_dom() {
-      this.wrapper.append(`<section class="item-details-container"></section>`);
+      this.wrapper.append(`<section class="item-details-container">
+			<div class="et-id-backdrop"></div>
+			<div class="et-id-modal-card"></div>
+		</section>`);
       this.$component = this.wrapper.find(".item-details-container");
+      this.$modal_card = this.$component.find(".et-id-modal-card");
     }
     init_child_components() {
-      this.$component.html(
+      this.$modal_card.html(
         `<div class="item-details-header">
 				<div class="label">${__("Item Details")}</div>
 				<div class="close-btn">
@@ -1849,14 +2393,33 @@
               const doc = me.events.get_frm().doc;
               me.$item_price.html(format_currency(item_row.rate, doc.currency));
               me.render_discount_dom(item_row);
+              me.qty_control && me.qty_control.refresh && me.qty_control.refresh();
             });
           }
         };
         this.rate_control.df.read_only = !this.allow_rate_change;
         this.rate_control.refresh();
       }
-      if (this.discount_percentage_control && !this.allow_discount_change) {
-        this.discount_percentage_control.df.read_only = 1;
+      if (this.discount_percentage_control) {
+        if (!this.allow_discount_change) {
+          this.discount_percentage_control.df.read_only = 1;
+        } else {
+          this.discount_percentage_control.df.onchange = function() {
+            let value = flt(this.value);
+            if (value < 0)
+              value = 0;
+            if (value > 100)
+              value = 100;
+            me.events.form_updated(me.current_item, "discount_percentage", value).then(() => {
+              const item_row = frappe.get_doc(me.doctype, me.name);
+              const doc = me.events.get_frm().doc;
+              me.$item_price.html(format_currency(item_row.rate, doc.currency));
+              me.render_discount_dom(item_row);
+              me.rate_control && me.rate_control.set_value(item_row.rate);
+              me.rate_control && me.rate_control.refresh && me.rate_control.refresh();
+            });
+          };
+        }
         this.discount_percentage_control.refresh();
       }
       if (this.warehouse_control) {
@@ -1978,6 +2541,9 @@
       this.bind_auto_serial_fetch_event();
       this.bind_fields_to_numpad_fields();
       this.$component.on("click", ".close-btn", () => {
+        this.events.close_item_details();
+      });
+      this.$component.on("click", ".et-id-backdrop", () => {
         this.events.close_item_details();
       });
     }
@@ -2328,8 +2894,9 @@
       const grand_total = cint(frappe.sys_defaults.disable_rounded_total) ? doc.grand_total : doc.rounded_total;
       const remaining_amount = grand_total - doc.paid_amount;
       const current_value = this.selected_mode ? this.selected_mode.get_value() : void 0;
-      if (!current_value && remaining_amount > 0 && this.selected_mode) {
-        this.selected_mode.set_value(remaining_amount);
+      this.numpad_value = "";
+      if (this.selected_mode) {
+        this.selected_mode.set_value(remaining_amount > 0 ? remaining_amount : 0);
       }
     }
     attach_shortcuts() {
@@ -2383,6 +2950,7 @@
     edit_cart() {
       this.events.toggle_other_sections(false);
       this.toggle_component(false);
+      $(".point-of-sale-app").removeClass("et-checkout-mode");
     }
     checkout() {
       const frm = this.events.get_frm();
@@ -2392,6 +2960,7 @@
       frm.refresh_field("base_paid_amount");
       this.events.toggle_other_sections(true);
       this.toggle_component(true);
+      $(".point-of-sale-app").addClass("et-checkout-mode");
       this.render_payment_section();
       this.after_render();
     }
@@ -2944,13 +3513,26 @@ Return`,
       this.$summary_container.on("click", ".print-btn", () => {
         this.print_receipt();
       });
+      this.$summary_container.on("click", ".print-invoice-btn", () => {
+        this.print_invoice();
+      });
     }
     print_receipt() {
       const frm = this.events.get_frm();
       frappe.utils.print(
         this.doc.doctype,
         this.doc.name,
-        frm.pos_print_format,
+        frm.pos_print_format || "EIMS POS Receipt",
+        this.doc.letter_head,
+        this.doc.language || frappe.boot.lang
+      );
+    }
+    print_invoice() {
+      const frm = this.events.get_frm();
+      frappe.utils.print(
+        this.doc.doctype,
+        this.doc.name,
+        "EIMS Invoice",
         this.doc.letter_head,
         this.doc.language || frappe.boot.lang
       );
@@ -3048,16 +3630,21 @@ Return`,
     }
     get_condition_btn_map(after_submission) {
       if (after_submission)
-        return [{ condition: true, visible_btns: ["Print Receipt", "Email Receipt", "New Order"] }];
+        return [
+          {
+            condition: true,
+            visible_btns: ["Print Receipt", "Print Invoice", "Email Receipt", "New Order"]
+          }
+        ];
       return [
         { condition: this.doc.docstatus === 0, visible_btns: ["Edit Order", "Delete Order"] },
         {
           condition: !this.doc.is_return && this.doc.docstatus === 1,
-          visible_btns: ["Print Receipt", "Email Receipt", "Return"]
+          visible_btns: ["Print Receipt", "Print Invoice", "Email Receipt", "Return"]
         },
         {
           condition: this.doc.is_return && this.doc.docstatus === 1,
-          visible_btns: ["Print Receipt", "Email Receipt"]
+          visible_btns: ["Print Receipt", "Print Invoice", "Email Receipt"]
         }
       ];
     }
@@ -3140,6 +3727,7 @@ Return`,
     constructor(wrapper) {
       this.wrapper = $(wrapper).find(".layout-main-section");
       this.page = wrapper.page;
+      this.sidebar_locked = localStorage.getItem("ethiotel_pos.sidebar_locked") === "1";
       this.check_opening_entry();
     }
     fetch_opening_entry() {
@@ -3309,13 +3897,492 @@ Return`,
     make_app() {
       this.prepare_dom();
       this.prepare_components();
+      this.prepare_topbar_events();
       this.prepare_menu();
       this.prepare_fullscreen_btn();
       this.make_new_invoice();
+      this.show_view("pos");
+    }
+    show_view(view_name) {
+      this.wrapper.find(".et-view").css("display", "none");
+      this.wrapper.find(`.et-view-${view_name}`).css("display", view_name === "pos" ? "flex" : "block");
+      this.wrapper.find(".et-left-menu-list .et-menu-item").removeClass("active");
+      this.wrapper.find(`.et-left-menu-list .et-menu-item[data-view="${view_name}"]`).addClass("active");
+      if (this.sidebar_locked || view_name !== "pos") {
+        this.wrapper.find(".et-pos-layout").addClass("et-sidebar-collapsed").removeClass("et-sidebar-open");
+      } else {
+        this.wrapper.find(".et-pos-layout").removeClass("et-sidebar-collapsed").addClass("et-sidebar-open");
+      }
+      this.current_view = view_name;
+    }
+    go_home() {
+      this.show_view("pos");
+      this.toggle_components(true);
+      this.item_details.toggle_component(false);
+      this.payment.toggle_component(false);
+      this.recent_order_list.toggle_component(false);
+      this.order_summary.toggle_component(false);
+      $(".point-of-sale-app").removeClass("et-checkout-mode");
+    }
+    toggle_sidebar_lock() {
+      this.sidebar_locked = !this.sidebar_locked;
+      localStorage.setItem("ethiotel_pos.sidebar_locked", this.sidebar_locked ? "1" : "0");
+      const $layout = this.wrapper.find(".et-pos-layout");
+      $layout.toggleClass("et-sidebar-locked", this.sidebar_locked);
+      this.wrapper.find(".et-sidebar-lock").each((i, el) => {
+        const $el = $(el);
+        $el.html(this.get_lock_svg(this.sidebar_locked));
+        $el.attr("title", this.sidebar_locked ? __("Unlock menu") : __("Lock menu"));
+        $el.toggleClass("et-locked", this.sidebar_locked);
+      });
+      this.show_view(this.current_view || "pos");
+    }
+    get_lock_svg(locked) {
+      return locked ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+    }
+    prepare_topbar_events() {
+      const container = this.wrapper;
+      container.on("click", ".et-network-status", () => {
+        frappe.show_alert({
+          message: ethiotel_pos.is_online() ? __("Online") : __("Offline"),
+          indicator: ethiotel_pos.is_online() ? "green" : "red"
+        });
+      });
+      container.on("click", ".et-invoices-icon", () => {
+        this.show_view("pos");
+        this.toggle_recent_order();
+      });
+      container.on("click", ".et-sync-icon", () => {
+        ethiotel_pos.sync_queued();
+        frappe.show_alert({ message: __("Sync started"), indicator: "blue" });
+      });
+      container.on("click", ".et-barcode-icon", () => {
+        this.show_view("pos");
+        this.item_selector.toggle_component(true);
+        if (this.item_selector && this.item_selector.open_scanner)
+          this.item_selector.open_scanner();
+      });
+      container.on("click", ".et-sidebar-toggle", () => {
+        if (this.sidebar_locked)
+          return;
+        const $layout = container.find(".et-pos-layout");
+        const isCollapsed = $layout.hasClass("et-sidebar-collapsed");
+        if (isCollapsed) {
+          $layout.removeClass("et-sidebar-collapsed").addClass("et-sidebar-open");
+        } else {
+          $layout.removeClass("et-sidebar-open").addClass("et-sidebar-collapsed");
+        }
+        setTimeout(() => $(window).trigger("resize"), 260);
+      });
+      container.on("click", ".et-sidebar-lock", () => this.toggle_sidebar_lock());
+      container.on("click", ".et-actions-btn", (e) => {
+        e.stopPropagation();
+        container.find(".et-profile-menu").hide();
+        container.find(".et-actions-menu").toggle();
+      });
+      container.on("click", ".et-profile-btn", (e) => {
+        e.stopPropagation();
+        container.find(".et-actions-menu").hide();
+        container.find(".et-profile-menu").toggle();
+      });
+      $(document).on("click.et-pos-dropdowns", () => {
+        container.find(".et-actions-menu, .et-profile-menu").hide();
+      });
+      container.on("click", ".et-action-return", () => {
+        this.show_view("pos");
+        this.toggle_recent_order();
+        frappe.show_alert({ message: __("Select an invoice, then use Return from its summary."), indicator: "orange" });
+      });
+      container.on("click", ".et-action-resync", () => {
+        ethiotel_pos.sync_queued();
+      });
+      container.on("click", ".et-action-print-last", () => {
+        frappe.call({ method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_last_invoice" }).then((r) => {
+          if (r.message)
+            frappe.utils.print("POS Invoice", r.message, "EIMS POS Receipt");
+          else
+            frappe.show_alert({ message: __("No invoice found"), indicator: "orange" });
+        });
+      });
+      container.on("click", ".et-action-send-mor", () => {
+        this.send_invoice_to_mor();
+      });
+      container.on("click", ".et-profile-signout", () => {
+        frappe.call("frappe.core.doctype.user.user.logout").then(() => window.location.reload());
+      });
+      container.on("click", ".et-profile-toggle-width", () => {
+        ethiotel_pos.toggle_fullscreen();
+      });
+      container.on("click", ".et-profile-shifttime", () => {
+        this.show_shift_time_alert();
+      });
+      container.on("click", ".et-profile-myprofile", () => {
+        frappe.set_route("Form", "User", frappe.session.user);
+      });
+      container.on("click", ".et-profile-apps", () => {
+        window.open("/apps", "_blank");
+      });
+      container.on("click", ".et-left-menu-list .et-home", () => this.go_home());
+      container.on("click", ".et-left-menu-list .et-shift-dashboard", () => this.show_dashboard());
+      container.on("click", ".et-left-menu-list .et-held-orders", () => this.show_held_orders());
+      container.on("click", ".et-left-menu-list .et-order-history", () => this.show_order_history());
+      container.on("click", ".et-left-menu-list .et-invoices", () => this.show_invoices_view());
+      container.on("click", ".et-left-menu-list .et-report", () => this.show_report());
+      container.on("click", ".et-left-menu-list .et-close-shift", () => this.close_pos());
+      container.on("click", ".et-left-menu-list .et-sign-out", () => {
+        frappe.call("frappe.core.doctype.user.user.logout").then(() => window.location.reload());
+      });
+    }
+    send_invoice_to_mor(invoice_name) {
+      const proceed = (name) => {
+        if (!name)
+          return frappe.msgprint(__("No invoice found"));
+        frappe.call({
+          method: "ethiotel_pos.eims_api.submit_invoice_and_update",
+          args: { invoice_name: name },
+          freeze: true
+        }).then((resp) => {
+          if (resp.message && resp.message.success) {
+            frappe.show_alert({ message: __("Sent to MoR"), indicator: "green" });
+          } else {
+            frappe.show_alert({ message: __("Failed to send to MoR"), indicator: "red" });
+          }
+        });
+      };
+      if (invoice_name)
+        return proceed(invoice_name);
+      frappe.db.get_list("POS Invoice", { fields: ["name"], limit: 1, order_by: "creation desc" }).then((res) => proceed(res && res.length ? res[0].name : null));
+    }
+    show_shift_time_alert() {
+      frappe.call({
+        method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_shift_summary",
+        args: { pos_opening: this.pos_opening }
+      }).then((r) => {
+        const d = r.message || {};
+        frappe.msgprint({
+          title: __("Current Shift"),
+          message: `
+					<div><b>${__("Opened")}:</b> ${frappe.datetime.str_to_user(this.pos_opening_time)}</div>
+					<div><b>${__("Sales so far")}:</b> ${format_currency(d.sales_total || 0)}</div>
+					<div><b>${__("Invoices so far")}:</b> ${d.invoice_count || 0}</div>
+				`,
+          indicator: "blue"
+        });
+      });
+    }
+    show_dashboard() {
+      this.show_view("dashboard");
+      const $view = this.wrapper.find(".et-view-dashboard");
+      $view.html(`<section class="et-dashboard">
+			<div class="et-dash-cards">
+				<div class="et-dash-card et-sales-today">${__("Loading...")}</div>
+				<div class="et-dash-card et-held-count">${__("Loading...")}</div>
+				<div class="et-dash-card et-invoices-count">${__("Loading...")}</div>
+			</div>
+			<div class="et-dash-list">
+				<h4>${__("Recent Invoices")}</h4>
+				<div class="et-dash-invoices"></div>
+			</div>
+		</section>`);
+      frappe.call({
+        method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_dashboard_metrics",
+        args: { pos_profile: this.pos_profile }
+      }).then((r) => {
+        const m = r.message || {};
+        $view.find(".et-sales-today").html(`${__("Sales Today")}<br><span>${format_currency(m.sales_today || 0)}</span>`);
+        $view.find(".et-held-count").html(`${__("Held Orders")}<br><span>${m.held_orders || 0}</span>`);
+        $view.find(".et-invoices-count").html(`${__("Invoices Today")}<br><span>${m.invoices_today || 0}</span>`);
+      });
+      frappe.call({
+        method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
+        args: { search_term: "", status: "Paid", limit: 8 }
+      }).then((r) => {
+        const list = r && r.message || [];
+        const $invoices = $view.find(".et-dash-invoices");
+        $invoices.html("");
+        if (!list.length) {
+          $invoices.html(`<div class="et-empty-state">${__("No invoices yet")}</div>`);
+          return;
+        }
+        list.forEach((i) => {
+          $invoices.append(
+            `<div class="et-dash-invoice-row">${frappe.utils.escape_html(i.name)} \u2014 ${format_currency(i.grand_total, i.currency)}</div>`
+          );
+        });
+      });
+    }
+    show_held_orders() {
+      this.show_view("held");
+      const $view = this.wrapper.find(".et-view-held");
+      $view.html(`<section class="et-held-orders"><h4>${__("Held Orders")}</h4><div class="et-held-list">${__("Loading...")}</div></section>`);
+      frappe.call({
+        method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
+        args: { search_term: "", status: "Draft", limit: 50 }
+      }).then((r) => {
+        const rows = r.message || [];
+        const $list = $view.find(".et-held-list");
+        $list.html("");
+        if (!rows.length) {
+          $list.html(`<div class="et-empty-state">${__("No held orders")}</div>`);
+          return;
+        }
+        rows.forEach((d) => {
+          const $row = $(
+            `<div class="et-held-row">
+						<div class="et-held-left">${frappe.utils.escape_html(d.name)} \u2014 ${frappe.utils.escape_html(d.customer || "")} \u2014 ${format_currency(d.grand_total, d.currency)}</div>
+						<div class="et-held-actions">
+							<button class="btn btn-default et-resume" data-name="${d.name}">${__("Resume")}</button>
+							<button class="btn btn-danger et-delete-held" data-name="${d.name}">${__("Delete")}</button>
+						</div>
+					</div>`
+          );
+          $list.append($row);
+        });
+        $list.on("click", ".et-resume", (e) => {
+          const name = $(e.currentTarget).attr("data-name");
+          frappe.dom.freeze();
+          this.frm = this.get_new_frm(this.frm);
+          frappe.db.get_doc("POS Invoice", name).then((doc) => {
+            frappe.model.sync(doc);
+            this.frm.refresh(doc.name);
+            this.cart.load_invoice();
+            this.go_home();
+            frappe.dom.unfreeze();
+          });
+        });
+        $list.on("click", ".et-delete-held", (e) => {
+          const name = $(e.currentTarget).attr("data-name");
+          frappe.confirm(__("Delete held order {0}?", [name]), () => {
+            frappe.call({ method: "frappe.client.delete", args: { doctype: "POS Invoice", name } }).then(() => {
+              frappe.show_alert({ message: __("Deleted"), indicator: "green" });
+              this.show_held_orders();
+            });
+          });
+        });
+      });
+    }
+    show_order_history() {
+      this.show_view("history");
+      const $view = this.wrapper.find(".et-view-history");
+      $view.html(`<section class="et-order-history"><h4>${__("Order History")}</h4><div class="et-history-list">${__("Loading...")}</div></section>`);
+      frappe.call({
+        method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
+        args: { search_term: "", status: "Paid", limit: 50 }
+      }).then((r) => {
+        const rows = r.message || [];
+        const $list = $view.find(".et-history-list");
+        $list.html("");
+        if (!rows.length) {
+          $list.html(`<div class="et-empty-state">${__("No orders yet")}</div>`);
+          return;
+        }
+        rows.forEach((d) => {
+          $list.append(
+            `<div class="et-history-row">${d.posting_date || ""} ${d.posting_time || ""} \u2014 ${frappe.utils.escape_html(d.name)} \u2014 ${frappe.utils.escape_html(d.customer || "")} \u2014 ${format_currency(d.grand_total, d.currency)}</div>`
+          );
+        });
+      });
+    }
+    show_invoices_view() {
+      this.show_view("invoices");
+      const $view = this.wrapper.find(".et-view-invoices");
+      $view.html(`<section class="et-invoices-view"><h4>${__("Invoices")}</h4><div class="et-invoices-list">${__("Loading...")}</div></section>`);
+      frappe.db.get_list("POS Invoice", {
+        fields: ["name", "grand_total", "currency", "customer", "posting_date"],
+        limit: 50,
+        order_by: "creation desc"
+      }).then((rows) => {
+        const $list = $view.find(".et-invoices-list");
+        $list.html("");
+        if (!rows.length) {
+          $list.html(`<div class="et-empty-state">${__("No invoices yet")}</div>`);
+          return;
+        }
+        rows.forEach((d) => {
+          const $row = $(
+            `<div class="et-invoice-row">
+							<div class="et-invoice-left">${d.posting_date || ""} \u2014 ${frappe.utils.escape_html(d.name)} \u2014 ${frappe.utils.escape_html(d.customer || "")} \u2014 ${format_currency(d.grand_total, d.currency)}</div>
+							<div class="et-invoice-actions">
+								<button class="btn btn-default et-view-invoice" data-name="${d.name}">${__("View")}</button>
+								<button class="btn btn-default et-print-invoice" data-name="${d.name}">${__("Print")}</button>
+								<button class="btn btn-default et-send-mor-row" data-name="${d.name}">${__("Send to MoR")}</button>
+							</div>
+						</div>`
+          );
+          $row.find(".et-view-invoice").on("click", (e) => {
+            const name = $(e.currentTarget).attr("data-name");
+            frappe.db.get_doc("POS Invoice", name).then((doc) => {
+              this.show_view("pos");
+              this.toggle_components(false);
+              this.recent_order_list.toggle_component(false);
+              this.order_summary.toggle_component(true);
+              this.order_summary.load_summary_of(doc, true);
+            });
+          });
+          $row.find(".et-print-invoice").on("click", (e) => {
+            const name = $(e.currentTarget).attr("data-name");
+            frappe.utils.print("POS Invoice", name, "EIMS POS Receipt");
+          });
+          $row.find(".et-send-mor-row").on("click", (e) => {
+            this.send_invoice_to_mor($(e.currentTarget).attr("data-name"));
+          });
+          $list.append($row);
+        });
+      });
+    }
+    show_report() {
+      this.show_view("report");
+      const $view = this.wrapper.find(".et-view-report");
+      $view.html(`<section class="et-report-view">
+			<h4>${__("Sales Report")}</h4>
+			<div class="et-report-filters">
+				<div class="et-report-field et-report-from"></div>
+				<div class="et-report-field et-report-to"></div>
+				<button class="btn btn-primary et-report-run">${__("Run")}</button>
+			</div>
+			<div class="et-report-summary"></div>
+			<div class="et-report-table"></div>
+		</section>`);
+      const from_field = frappe.ui.form.make_control({
+        df: { label: __("From Date"), fieldtype: "Date", default: frappe.datetime.month_start() },
+        parent: $view.find(".et-report-from"),
+        render_input: true
+      });
+      const to_field = frappe.ui.form.make_control({
+        df: { label: __("To Date"), fieldtype: "Date", default: frappe.datetime.now_date() },
+        parent: $view.find(".et-report-to"),
+        render_input: true
+      });
+      const run_report = () => {
+        frappe.call({
+          method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_sales_report",
+          args: {
+            from_date: from_field.get_value(),
+            to_date: to_field.get_value(),
+            pos_profile: this.pos_profile
+          },
+          freeze: true
+        }).then((r) => {
+          const data = r.message || {};
+          $view.find(".et-report-summary").html(`
+					<div class="et-dash-cards">
+						<div class="et-dash-card">${__("Total Sales")}<br><span>${format_currency(data.total_sales || 0)}</span></div>
+						<div class="et-dash-card">${__("Invoice Count")}<br><span>${data.invoice_count || 0}</span></div>
+						<div class="et-dash-card">${__("Avg. Sale")}<br><span>${format_currency(data.avg_sale || 0)}</span></div>
+					</div>
+				`);
+          const rows = data.by_payment_mode || [];
+          const $table = $view.find(".et-report-table");
+          if (!rows.length) {
+            $table.html(`<div class="et-empty-state">${__("No data for this period")}</div>`);
+            return;
+          }
+          $table.html(`
+					<table class="table table-bordered">
+						<thead><tr><th>${__("Mode of Payment")}</th><th>${__("Amount")}</th></tr></thead>
+						<tbody>
+							${rows.map((r2) => `<tr><td>${frappe.utils.escape_html(r2.mode_of_payment)}</td><td>${format_currency(r2.amount)}</td></tr>`).join("")}
+						</tbody>
+					</table>
+				`);
+        });
+      };
+      $view.find(".et-report-run").on("click", run_report);
+      run_report();
+    }
+    clear_main() {
+      this.wrapper.find(`.et-view-${this.current_view}`).html("");
     }
     prepare_dom() {
-      this.wrapper.append(`<div class="point-of-sale-app"></div>`);
-      this.$components_wrapper = this.wrapper.find(".point-of-sale-app");
+      this.wrapper.append(`
+			<div class="et-pos-layout et-sidebar-open">
+				<aside class="et-left-menu">
+					<div class="et-left-menu-inner">
+						<div class="et-sidebar-lock-row">
+							<span>${__("Menu")}</span>
+							<button class="et-icon et-sidebar-lock ${this.sidebar_locked ? "et-locked" : ""}"
+								title="${this.sidebar_locked ? __("Unlock menu") : __("Lock menu")}">
+								${this.get_lock_svg(this.sidebar_locked)}
+							</button>
+						</div>
+						<ul class="et-left-menu-list">
+							<li class="et-menu-item et-home" data-view="pos">${__("Home")}</li>
+							<li class="et-menu-item et-shift-dashboard" data-view="dashboard">${__("Shift Dashboard")}</li>
+							<li class="et-menu-item et-held-orders" data-view="held">${__("Held Orders")}</li>
+							<li class="et-menu-item et-order-history" data-view="history">${__("Order History")}</li>
+							<li class="et-menu-item et-invoices" data-view="invoices">${__("Invoices")}</li>
+							<li class="et-menu-item et-report" data-view="report">${__("Report")}</li>
+							<li class="et-menu-item et-close-shift">${__("Close Shift")}</li>
+							<li class="et-menu-item et-sign-out">${__("Sign Out")}</li>
+						</ul>
+					</div>
+				</aside>
+				<div class="et-main">
+					<header class="et-topbar pos-navbar-enhanced">
+						<div class="et-topbar-left">
+							<button class="et-icon et-sidebar-toggle" title="${__("Toggle menu")}">
+								<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<line x1="3" y1="6" x2="21" y2="6"></line>
+									<line x1="3" y1="12" x2="21" y2="12"></line>
+									<line x1="3" y1="18" x2="21" y2="18"></line>
+								</svg>
+							</button>
+							<button class="et-icon et-sidebar-lock ${this.sidebar_locked ? "et-locked" : ""}"
+								title="${this.sidebar_locked ? __("Unlock menu") : __("Lock menu")}">
+								${this.get_lock_svg(this.sidebar_locked)}
+							</button>
+							<div class="et-nav-brand pos-navbar-logo">
+								<img src="/assets/ethiotel_pos/images/tele.jpg" alt="logo" />
+							</div>
+						</div>
+						<div class="et-topbar-right">
+							<span class="et-nav-clock"><span></span></span>
+							<button class="et-icon et-network-status" title="${__("Network status")}">${this.get_icon_svg("network")}</button>
+							<button class="et-icon et-invoices-icon" title="${__("Invoices")}">${this.get_icon_svg("invoice")}</button>
+							<button class="et-icon et-sync-icon" title="${__("Sync")}">${this.get_icon_svg("sync")}</button>
+							<button class="et-icon et-barcode-icon" title="${__("Scan barcode")}">${this.get_icon_svg("barcode")}</button>
+							<div class="et-actions-dropdown">
+								<button class="et-icon et-actions-btn">${__("Actions")} \u25BE</button>
+								<ul class="et-actions-menu">
+									<li class="et-action-return">${__("Return Invoice")}</li>
+									<li class="et-action-resync">${__("Resync")}</li>
+									<li class="et-action-print-last">${__("Print Last Invoice")}</li>
+									<li class="et-action-send-mor">${__("Send to MoR")}</li>
+								</ul>
+							</div>
+							<div class="et-profile-dropdown">
+								<button class="et-profile-btn">${frappe.utils.escape_html(frappe.session.user_fullname || frappe.session.user)} \u25BE</button>
+								<ul class="et-profile-menu">
+									<li class="et-profile-shifttime">${__("Shift Time")}</li>
+									<li class="et-profile-myprofile">${__("My Profile")}</li>
+									<li class="et-profile-apps">${__("Apps")}</li>
+									<li class="et-profile-toggle-width">${__("Toggle Full Width")}</li>
+									<li class="et-profile-signout">${__("Sign Out")}</li>
+								</ul>
+							</div>
+						</div>
+					</header>
+					<div class="et-view-container">
+						<div class="point-of-sale-app et-view et-view-pos"></div>
+						<div class="et-view et-view-dashboard"></div>
+						<div class="et-view et-view-held"></div>
+						<div class="et-view et-view-history"></div>
+						<div class="et-view et-view-invoices"></div>
+						<div class="et-view et-view-report"></div>
+					</div>
+				</div>
+			</div>
+		`);
+      this.$components_wrapper = this.wrapper.find(".et-view-pos");
+    }
+    get_icon_svg(name) {
+      const icons = {
+        network: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>`,
+        invoice: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>`,
+        sync: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+        barcode: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M7 5v14M11 5v14M14 5v14M18 5v14M21 5v14" stroke-linecap="round"/></svg>`
+      };
+      return icons[name] || "";
     }
     prepare_components() {
       this.init_item_selector();
@@ -3371,7 +4438,7 @@ Return`,
       this.toggle_recent_order_list(show);
     }
     save_draft_invoice() {
-      if (!this.$components_wrapper.is(":visible"))
+      if (this.current_view !== "pos")
         return;
       if (this.frm.doc.items.length == 0) {
         frappe.show_alert({
@@ -3396,17 +4463,26 @@ Return`,
       });
     }
     close_pos() {
-      if (!this.$components_wrapper.is(":visible"))
+      if (!this.pos_opening) {
+        frappe.msgprint(__("No open shift found."));
         return;
-      let voucher = frappe.model.get_new_doc("POS Closing Entry");
-      voucher.pos_profile = this.frm.doc.pos_profile;
-      voucher.user = frappe.session.user;
-      voucher.company = this.frm.doc.company;
-      voucher.pos_opening_entry = this.pos_opening;
-      voucher.period_end_date = frappe.datetime.now_datetime();
-      voucher.posting_date = frappe.datetime.now_date();
-      voucher.posting_time = frappe.datetime.now_time();
-      frappe.set_route("Form", "POS Closing Entry", voucher.name);
+      }
+      frappe.confirm(__("Close the current shift and go to the Closing Entry form?"), () => {
+        frappe.model.with_doctype("POS Closing Entry", () => {
+          const name = frappe.model.make_new_doc_and_get_name("POS Closing Entry", true);
+          const voucher = frappe.model.get_doc("POS Closing Entry", name);
+          voucher.pos_profile = this.pos_profile;
+          voucher.user = frappe.session.user;
+          voucher.company = this.company;
+          voucher.pos_opening_entry = this.pos_opening;
+          voucher.period_start_date = this.pos_opening_time;
+          voucher.period_end_date = frappe.datetime.now_datetime();
+          voucher.posting_date = frappe.datetime.now_date();
+          voucher.posting_time = frappe.datetime.now_time();
+          frappe.model.sync(voucher);
+          frappe.set_route("Form", "POS Closing Entry", voucher.name);
+        });
+      });
     }
     init_item_selector() {
       this.item_selector = new erpnext.PointOfSale.ItemSelector({
@@ -3429,6 +4505,15 @@ Return`,
             const item_row = this.get_item_from_frm(item);
             this.item_details.toggle_item_details_section(item_row);
           },
+          select_cart_item: (name) => {
+            const item_row = this.get_item_from_frm({ name });
+            if (!item_row || !item_row.name)
+              return;
+            this.item_details.doctype = item_row.doctype;
+            this.item_details.name = item_row.name;
+            this.item_details.item_row = item_row;
+            this.item_details.current_item = item_row;
+          },
           numpad_event: (value, action) => this.update_item_field(value, action),
           checkout: () => this.save_and_checkout(),
           edit_cart: () => this.payment.edit_cart(),
@@ -3436,9 +4521,33 @@ Return`,
             this.item_selector.load_items_data();
             this.customer_details = details;
             this.payment.render_loyalty_points_payment_mode();
-          }
+          },
+          save_and_print: () => this.save_and_print("EIMS POS Receipt"),
+          print_invoice: () => this.save_and_print("EIMS Invoice")
         }
       });
+    }
+    save_and_print(print_format) {
+      if (this.frm.doc.items.length == 0) {
+        frappe.show_alert({
+          message: __("You must add atleast one item to print."),
+          indicator: "orange"
+        });
+        frappe.utils.play_sound("error");
+        return;
+      }
+      frappe.run_serially([
+        () => this.frm.save(),
+        () => {
+          frappe.utils.print(
+            this.frm.doc.doctype,
+            this.frm.doc.name,
+            print_format,
+            this.frm.doc.letter_head,
+            this.frm.doc.language || frappe.boot.lang
+          );
+        }
+      ]);
     }
     init_item_details() {
       this.item_details = new erpnext.PointOfSale.ItemDetails({
@@ -3447,7 +4556,6 @@ Return`,
         events: {
           get_frm: () => this.frm,
           toggle_item_selector: (minimize) => {
-            this.item_selector.resize_selector(minimize);
             this.cart.toggle_numpad(minimize);
           },
           form_updated: (item, field, value) => {
@@ -3510,10 +4618,7 @@ Return`,
           get_frm: () => this.frm || {},
           get_customer_details: () => this.customer_details || {},
           toggle_other_sections: (show) => {
-            if (show) {
-              this.item_details.$component.is(":visible") ? this.item_details.$component.css("display", "none") : "";
-              this.item_selector.toggle_component(false);
-            } else {
+            if (!show) {
               this.item_selector.toggle_component(true);
             }
           },
@@ -3587,6 +4692,7 @@ Return`,
       });
     }
     toggle_recent_order_list(show) {
+      this.show_view("pos");
       this.toggle_components(!show);
       this.recent_order_list.toggle_component(show);
       this.order_summary.toggle_component(show);
@@ -3666,6 +4772,7 @@ Return`,
       this.page.set_indicator(this.pos_profile, "blue");
     }
     async on_cart_update(args) {
+      this.show_view("pos");
       frappe.dom.freeze();
       if (this.frm.doc.set_warehouse !== this.settings.warehouse) {
         this.frm.set_value("set_warehouse", this.settings.warehouse);
@@ -3695,6 +4802,12 @@ Return`,
                 item_row.serial_no + `
 ${item.serial_no}`
               );
+            }
+            if (["discount_percentage", "rate", "qty", "conversion_factor", "uom"].includes(field)) {
+              await this.frm.script_manager.trigger(field, item_row.doctype, item_row.name);
+              if (["discount_percentage", "rate"].includes(field)) {
+                await this.frm.script_manager.trigger("qty", item_row.doctype, item_row.name);
+              }
             }
             this.update_cart_html(item_row);
           }
@@ -3887,4 +5000,4 @@ ${item.serial_no}`
     }
   };
 })();
-//# sourceMappingURL=ethiotel-pos.bundle.D4J2K767.js.map
+//# sourceMappingURL=ethiotel-pos.bundle.MXT3IL7A.js.map

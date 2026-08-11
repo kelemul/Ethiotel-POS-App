@@ -3,6 +3,9 @@ erpnext.PointOfSale.Controller = class {
 		this.wrapper = $(wrapper).find(".layout-main-section");
 		this.page = wrapper.page;
 
+		// locked = left menu stays hidden everywhere until unlocked
+		this.sidebar_locked = localStorage.getItem("ethiotel_pos.sidebar_locked") === "1";
+
 		this.check_opening_entry();
 	}
 
@@ -184,15 +187,581 @@ erpnext.PointOfSale.Controller = class {
 	make_app() {
 		this.prepare_dom();
 		this.prepare_components();
+		this.prepare_topbar_events();
 		this.prepare_menu();
 		this.prepare_fullscreen_btn();
 		this.make_new_invoice();
+		this.show_view("pos");
+	}
+
+	/* =====================================================================
+	   VIEW SWITCHING
+	   The POS selling screen (item selector / cart / payment / item details /
+	   recent order list / order summary) lives inside .et-view-pos and is
+	   built ONCE by prepare_components(). Every other screen (Dashboard,
+	   Held Orders, Order History, Invoices, Report, Close Shift) is its own
+	   sibling container. Switching views only ever toggles `display`, it
+	   never empties .et-view-pos — that was destroying the ItemSelector /
+	   ItemCart / Payment DOM nodes that their JS objects still reference.
+	   ===================================================================== */
+	show_view(view_name) {
+		this.wrapper.find(".et-view").css("display", "none");
+		// et-view-pos is display:flex; it hosts .point-of-sale-app which itself uses CSS grid
+		this.wrapper.find(`.et-view-${view_name}`).css("display", view_name === "pos" ? "flex" : "block");
+
+		this.wrapper.find(".et-left-menu-list .et-menu-item").removeClass("active");
+		this.wrapper.find(`.et-left-menu-list .et-menu-item[data-view="${view_name}"]`).addClass("active");
+
+		// non-POS views always run full-page without the menu; when the menu is
+		// locked it stays hidden everywhere (even on the selling screen)
+		if (this.sidebar_locked || view_name !== "pos") {
+			this.wrapper.find(".et-pos-layout").addClass("et-sidebar-collapsed").removeClass("et-sidebar-open");
+		} else {
+			this.wrapper.find(".et-pos-layout").removeClass("et-sidebar-collapsed").addClass("et-sidebar-open");
+		}
+
+		this.current_view = view_name;
+	}
+
+	go_home() {
+		// "Home" returns to the actual selling screen, not the dashboard
+		this.show_view("pos");
+		this.toggle_components(true);
+		this.item_details.toggle_component(false);
+		this.payment.toggle_component(false);
+		this.recent_order_list.toggle_component(false);
+		this.order_summary.toggle_component(false);
+		$(".point-of-sale-app").removeClass("et-checkout-mode");
+	}
+
+	toggle_sidebar_lock() {
+		this.sidebar_locked = !this.sidebar_locked;
+		localStorage.setItem("ethiotel_pos.sidebar_locked", this.sidebar_locked ? "1" : "0");
+
+		const $layout = this.wrapper.find(".et-pos-layout");
+		$layout.toggleClass("et-sidebar-locked", this.sidebar_locked);
+
+		this.wrapper.find(".et-sidebar-lock").each((i, el) => {
+			const $el = $(el);
+			$el.html(this.get_lock_svg(this.sidebar_locked));
+			$el.attr("title", this.sidebar_locked ? __("Unlock menu") : __("Lock menu"));
+			$el.toggleClass("et-locked", this.sidebar_locked);
+		});
+
+		this.show_view(this.current_view || "pos");
+	}
+
+	get_lock_svg(locked) {
+		return locked
+			? `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
+			: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+	}
+
+	prepare_topbar_events() {
+		const container = this.wrapper;
+
+		container.on("click", ".et-network-status", () => {
+			frappe.show_alert({
+				message: ethiotel_pos.is_online() ? __("Online") : __("Offline"),
+				indicator: ethiotel_pos.is_online() ? "green" : "red",
+			});
+		});
+
+		container.on("click", ".et-invoices-icon", () => {
+			this.show_view("pos");
+			this.toggle_recent_order();
+		});
+
+		container.on("click", ".et-sync-icon", () => {
+			ethiotel_pos.sync_queued();
+			frappe.show_alert({ message: __("Sync started"), indicator: "blue" });
+		});
+
+		container.on("click", ".et-barcode-icon", () => {
+			this.show_view("pos");
+			this.item_selector.toggle_component(true);
+			if (this.item_selector && this.item_selector.open_scanner) this.item_selector.open_scanner();
+		});
+
+		/* ---------- sidebar drawer toggle ---------- */
+		container.on("click", ".et-sidebar-toggle", () => {
+			if (this.sidebar_locked) return; // locked menu stays hidden
+			const $layout = container.find(".et-pos-layout");
+			// Start collapsed = NO (default open via class="et-pos-layout et-sidebar-open" in prepare_dom)
+			const isCollapsed = $layout.hasClass("et-sidebar-collapsed");
+			if (isCollapsed) {
+				// opening the drawer: add et-sidebar-open, remove et-sidebar-collapsed
+				$layout.removeClass("et-sidebar-collapsed").addClass("et-sidebar-open");
+			} else {
+				// closing (collapsing) the drawer: remove et-sidebar-open, add et-sidebar-collapsed
+				$layout.removeClass("et-sidebar-open").addClass("et-sidebar-collapsed");
+			}
+			// refresh layout — some child components use flex heights
+			setTimeout(() => $(window).trigger("resize"), 260);
+		});
+
+		/* ---------- sidebar lock / unlock ---------- */
+		container.on("click", ".et-sidebar-lock", () => this.toggle_sidebar_lock());
+
+		/* ---------- dropdowns ---------- */
+		container.on("click", ".et-actions-btn", (e) => {
+			e.stopPropagation();
+			container.find(".et-profile-menu").hide();
+			container.find(".et-actions-menu").toggle();
+		});
+
+		container.on("click", ".et-profile-btn", (e) => {
+			e.stopPropagation();
+			container.find(".et-actions-menu").hide();
+			container.find(".et-profile-menu").toggle();
+		});
+
+		// close dropdowns when clicking anywhere else
+		$(document).on("click.et-pos-dropdowns", () => {
+			container.find(".et-actions-menu, .et-profile-menu").hide();
+		});
+
+		container.on("click", ".et-action-return", () => {
+			this.show_view("pos");
+			this.toggle_recent_order();
+			frappe.show_alert({ message: __("Select an invoice, then use Return from its summary."), indicator: "orange" });
+		});
+
+		container.on("click", ".et-action-resync", () => {
+			ethiotel_pos.sync_queued();
+		});
+
+		container.on("click", ".et-action-print-last", () => {
+			frappe.call({ method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_last_invoice" }).then((r) => {
+				if (r.message) frappe.utils.print("POS Invoice", r.message, "EIMS POS Receipt");
+				else frappe.show_alert({ message: __("No invoice found"), indicator: "orange" });
+			});
+		});
+
+		container.on("click", ".et-action-send-mor", () => {
+			this.send_invoice_to_mor();
+		});
+
+		container.on("click", ".et-profile-signout", () => {
+			frappe.call("frappe.core.doctype.user.user.logout").then(() => window.location.reload());
+		});
+
+		container.on("click", ".et-profile-toggle-width", () => {
+			ethiotel_pos.toggle_fullscreen();
+		});
+
+		container.on("click", ".et-profile-shifttime", () => {
+			this.show_shift_time_alert();
+		});
+
+		container.on("click", ".et-profile-myprofile", () => {
+			frappe.set_route("Form", "User", frappe.session.user);
+		});
+
+		container.on("click", ".et-profile-apps", () => {
+			window.open("/apps", "_blank");
+		});
+
+		/* ---------- left menu ---------- */
+		container.on("click", ".et-left-menu-list .et-home", () => this.go_home());
+		container.on("click", ".et-left-menu-list .et-shift-dashboard", () => this.show_dashboard());
+		container.on("click", ".et-left-menu-list .et-held-orders", () => this.show_held_orders());
+		container.on("click", ".et-left-menu-list .et-order-history", () => this.show_order_history());
+		container.on("click", ".et-left-menu-list .et-invoices", () => this.show_invoices_view());
+		container.on("click", ".et-left-menu-list .et-report", () => this.show_report());
+		container.on("click", ".et-left-menu-list .et-close-shift", () => this.close_pos());
+		container.on("click", ".et-left-menu-list .et-sign-out", () => {
+			frappe.call("frappe.core.doctype.user.user.logout").then(() => window.location.reload());
+		});
+	}
+
+	send_invoice_to_mor(invoice_name) {
+		const proceed = (name) => {
+			if (!name) return frappe.msgprint(__("No invoice found"));
+			frappe.call({
+				method: "ethiotel_pos.eims_api.submit_invoice_and_update",
+				args: { invoice_name: name },
+				freeze: true,
+			}).then((resp) => {
+				if (resp.message && resp.message.success) {
+					frappe.show_alert({ message: __("Sent to MoR"), indicator: "green" });
+				} else {
+					frappe.show_alert({ message: __("Failed to send to MoR"), indicator: "red" });
+				}
+			});
+		};
+
+		if (invoice_name) return proceed(invoice_name);
+
+		frappe.db
+			.get_list("POS Invoice", { fields: ["name"], limit: 1, order_by: "creation desc" })
+			.then((res) => proceed(res && res.length ? res[0].name : null));
+	}
+
+	show_shift_time_alert() {
+		frappe.call({
+			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_shift_summary",
+			args: { pos_opening: this.pos_opening },
+		}).then((r) => {
+			const d = r.message || {};
+			frappe.msgprint({
+				title: __("Current Shift"),
+				message: `
+					<div><b>${__("Opened")}:</b> ${frappe.datetime.str_to_user(this.pos_opening_time)}</div>
+					<div><b>${__("Sales so far")}:</b> ${format_currency(d.sales_total || 0)}</div>
+					<div><b>${__("Invoices so far")}:</b> ${d.invoice_count || 0}</div>
+				`,
+				indicator: "blue",
+			});
+		});
+	}
+
+	// ---------- Left menu pages ----------
+	show_dashboard() {
+		this.show_view("dashboard");
+		const $view = this.wrapper.find(".et-view-dashboard");
+		$view.html(`<section class="et-dashboard">
+			<div class="et-dash-cards">
+				<div class="et-dash-card et-sales-today">${__("Loading...")}</div>
+				<div class="et-dash-card et-held-count">${__("Loading...")}</div>
+				<div class="et-dash-card et-invoices-count">${__("Loading...")}</div>
+			</div>
+			<div class="et-dash-list">
+				<h4>${__("Recent Invoices")}</h4>
+				<div class="et-dash-invoices"></div>
+			</div>
+		</section>`);
+
+		frappe.call({
+			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_dashboard_metrics",
+			args: { pos_profile: this.pos_profile },
+		}).then((r) => {
+			const m = r.message || {};
+			$view.find(".et-sales-today").html(`${__("Sales Today")}<br><span>${format_currency(m.sales_today || 0)}</span>`);
+			$view.find(".et-held-count").html(`${__("Held Orders")}<br><span>${m.held_orders || 0}</span>`);
+			$view.find(".et-invoices-count").html(`${__("Invoices Today")}<br><span>${m.invoices_today || 0}</span>`);
+		});
+
+		frappe.call({
+			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
+			args: { search_term: "", status: "Paid", limit: 8 },
+		}).then((r) => {
+			const list = (r && r.message) || [];
+			const $invoices = $view.find(".et-dash-invoices");
+			$invoices.html("");
+			if (!list.length) {
+				$invoices.html(`<div class="et-empty-state">${__("No invoices yet")}</div>`);
+				return;
+			}
+			list.forEach((i) => {
+				$invoices.append(
+					`<div class="et-dash-invoice-row">${frappe.utils.escape_html(i.name)} — ${format_currency(i.grand_total, i.currency)}</div>`
+				);
+			});
+		});
+	}
+
+	show_held_orders() {
+		this.show_view("held");
+		const $view = this.wrapper.find(".et-view-held");
+		$view.html(`<section class="et-held-orders"><h4>${__("Held Orders")}</h4><div class="et-held-list">${__("Loading...")}</div></section>`);
+
+		frappe.call({
+			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
+			args: { search_term: "", status: "Draft", limit: 50 },
+		}).then((r) => {
+			const rows = r.message || [];
+			const $list = $view.find(".et-held-list");
+			$list.html("");
+
+			if (!rows.length) {
+				$list.html(`<div class="et-empty-state">${__("No held orders")}</div>`);
+				return;
+			}
+
+			rows.forEach((d) => {
+				const $row = $(
+					`<div class="et-held-row">
+						<div class="et-held-left">${frappe.utils.escape_html(d.name)} — ${frappe.utils.escape_html(d.customer || "")} — ${format_currency(d.grand_total, d.currency)}</div>
+						<div class="et-held-actions">
+							<button class="btn btn-default et-resume" data-name="${d.name}">${__("Resume")}</button>
+							<button class="btn btn-danger et-delete-held" data-name="${d.name}">${__("Delete")}</button>
+						</div>
+					</div>`
+				);
+				$list.append($row);
+			});
+
+			$list.on("click", ".et-resume", (e) => {
+				const name = $(e.currentTarget).attr("data-name");
+				frappe.dom.freeze();
+				this.frm = this.get_new_frm(this.frm);
+				frappe.db.get_doc("POS Invoice", name).then((doc) => {
+					frappe.model.sync(doc);
+					this.frm.refresh(doc.name);
+					this.cart.load_invoice();
+					this.go_home();
+					frappe.dom.unfreeze();
+				});
+			});
+
+			$list.on("click", ".et-delete-held", (e) => {
+				const name = $(e.currentTarget).attr("data-name");
+				frappe.confirm(__("Delete held order {0}?", [name]), () => {
+					frappe.call({ method: "frappe.client.delete", args: { doctype: "POS Invoice", name } }).then(() => {
+						frappe.show_alert({ message: __("Deleted"), indicator: "green" });
+						this.show_held_orders();
+					});
+				});
+			});
+		});
+	}
+
+	show_order_history() {
+		this.show_view("history");
+		const $view = this.wrapper.find(".et-view-history");
+		$view.html(`<section class="et-order-history"><h4>${__("Order History")}</h4><div class="et-history-list">${__("Loading...")}</div></section>`);
+
+		frappe.call({
+			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
+			args: { search_term: "", status: "Paid", limit: 50 },
+		}).then((r) => {
+			const rows = r.message || [];
+			const $list = $view.find(".et-history-list");
+			$list.html("");
+
+			if (!rows.length) {
+				$list.html(`<div class="et-empty-state">${__("No orders yet")}</div>`);
+				return;
+			}
+
+			rows.forEach((d) => {
+				$list.append(
+					`<div class="et-history-row">${d.posting_date || ""} ${d.posting_time || ""} — ${frappe.utils.escape_html(d.name)} — ${frappe.utils.escape_html(d.customer || "")} — ${format_currency(d.grand_total, d.currency)}</div>`
+				);
+			});
+		});
+	}
+
+	show_invoices_view() {
+		this.show_view("invoices");
+		const $view = this.wrapper.find(".et-view-invoices");
+		$view.html(`<section class="et-invoices-view"><h4>${__("Invoices")}</h4><div class="et-invoices-list">${__("Loading...")}</div></section>`);
+
+		frappe.db
+			.get_list("POS Invoice", {
+				fields: ["name", "grand_total", "currency", "customer", "posting_date"],
+				limit: 50,
+				order_by: "creation desc",
+			})
+			.then((rows) => {
+				const $list = $view.find(".et-invoices-list");
+				$list.html("");
+
+				if (!rows.length) {
+					$list.html(`<div class="et-empty-state">${__("No invoices yet")}</div>`);
+					return;
+				}
+
+				rows.forEach((d) => {
+					const $row = $(
+						`<div class="et-invoice-row">
+							<div class="et-invoice-left">${d.posting_date || ""} — ${frappe.utils.escape_html(d.name)} — ${frappe.utils.escape_html(d.customer || "")} — ${format_currency(d.grand_total, d.currency)}</div>
+							<div class="et-invoice-actions">
+								<button class="btn btn-default et-view-invoice" data-name="${d.name}">${__("View")}</button>
+								<button class="btn btn-default et-print-invoice" data-name="${d.name}">${__("Print")}</button>
+								<button class="btn btn-default et-send-mor-row" data-name="${d.name}">${__("Send to MoR")}</button>
+							</div>
+						</div>`
+					);
+					$row.find(".et-view-invoice").on("click", (e) => {
+						const name = $(e.currentTarget).attr("data-name");
+						frappe.db.get_doc("POS Invoice", name).then((doc) => {
+							this.show_view("pos");
+							this.toggle_components(false);
+							this.recent_order_list.toggle_component(false);
+							this.order_summary.toggle_component(true);
+							this.order_summary.load_summary_of(doc, true);
+						});
+					});
+					$row.find(".et-print-invoice").on("click", (e) => {
+						const name = $(e.currentTarget).attr("data-name");
+						frappe.utils.print("POS Invoice", name, "EIMS POS Receipt");
+					});
+					$row.find(".et-send-mor-row").on("click", (e) => {
+						this.send_invoice_to_mor($(e.currentTarget).attr("data-name"));
+					});
+					$list.append($row);
+				});
+			});
+	}
+
+	show_report() {
+		this.show_view("report");
+		const $view = this.wrapper.find(".et-view-report");
+		$view.html(`<section class="et-report-view">
+			<h4>${__("Sales Report")}</h4>
+			<div class="et-report-filters">
+				<div class="et-report-field et-report-from"></div>
+				<div class="et-report-field et-report-to"></div>
+				<button class="btn btn-primary et-report-run">${__("Run")}</button>
+			</div>
+			<div class="et-report-summary"></div>
+			<div class="et-report-table"></div>
+		</section>`);
+
+		const from_field = frappe.ui.form.make_control({
+			df: { label: __("From Date"), fieldtype: "Date", default: frappe.datetime.month_start() },
+			parent: $view.find(".et-report-from"),
+			render_input: true,
+		});
+		const to_field = frappe.ui.form.make_control({
+			df: { label: __("To Date"), fieldtype: "Date", default: frappe.datetime.now_date() },
+			parent: $view.find(".et-report-to"),
+			render_input: true,
+		});
+
+		const run_report = () => {
+			frappe.call({
+				method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_sales_report",
+				args: {
+					from_date: from_field.get_value(),
+					to_date: to_field.get_value(),
+					pos_profile: this.pos_profile,
+				},
+				freeze: true,
+			}).then((r) => {
+				const data = r.message || {};
+				$view.find(".et-report-summary").html(`
+					<div class="et-dash-cards">
+						<div class="et-dash-card">${__("Total Sales")}<br><span>${format_currency(data.total_sales || 0)}</span></div>
+						<div class="et-dash-card">${__("Invoice Count")}<br><span>${data.invoice_count || 0}</span></div>
+						<div class="et-dash-card">${__("Avg. Sale")}<br><span>${format_currency(data.avg_sale || 0)}</span></div>
+					</div>
+				`);
+
+				const rows = data.by_payment_mode || [];
+				const $table = $view.find(".et-report-table");
+				if (!rows.length) {
+					$table.html(`<div class="et-empty-state">${__("No data for this period")}</div>`);
+					return;
+				}
+				$table.html(`
+					<table class="table table-bordered">
+						<thead><tr><th>${__("Mode of Payment")}</th><th>${__("Amount")}</th></tr></thead>
+						<tbody>
+							${rows.map((r) => `<tr><td>${frappe.utils.escape_html(r.mode_of_payment)}</td><td>${format_currency(r.amount)}</td></tr>`).join("")}
+						</tbody>
+					</table>
+				`);
+			});
+		};
+
+		$view.find(".et-report-run").on("click", run_report);
+		run_report();
+	}
+
+	clear_main() {
+		// retained for backward-compatibility; no longer used to wipe the
+		// live POS components. Use show_view() + rendering into the
+		// dedicated .et-view-* container instead.
+		this.wrapper.find(`.et-view-${this.current_view}`).html("");
 	}
 
 	prepare_dom() {
-		this.wrapper.append(`<div class="point-of-sale-app"></div>`);
+		this.wrapper.append(`
+			<div class="et-pos-layout et-sidebar-open">
+				<aside class="et-left-menu">
+					<div class="et-left-menu-inner">
+						<div class="et-sidebar-lock-row">
+							<span>${__("Menu")}</span>
+							<button class="et-icon et-sidebar-lock ${this.sidebar_locked ? "et-locked" : ""}"
+								title="${this.sidebar_locked ? __("Unlock menu") : __("Lock menu")}">
+								${this.get_lock_svg(this.sidebar_locked)}
+							</button>
+						</div>
+						<ul class="et-left-menu-list">
+							<li class="et-menu-item et-home" data-view="pos">${__("Home")}</li>
+							<li class="et-menu-item et-shift-dashboard" data-view="dashboard">${__("Shift Dashboard")}</li>
+							<li class="et-menu-item et-held-orders" data-view="held">${__("Held Orders")}</li>
+							<li class="et-menu-item et-order-history" data-view="history">${__("Order History")}</li>
+							<li class="et-menu-item et-invoices" data-view="invoices">${__("Invoices")}</li>
+							<li class="et-menu-item et-report" data-view="report">${__("Report")}</li>
+							<li class="et-menu-item et-close-shift">${__("Close Shift")}</li>
+							<li class="et-menu-item et-sign-out">${__("Sign Out")}</li>
+						</ul>
+					</div>
+				</aside>
+				<div class="et-main">
+					<header class="et-topbar pos-navbar-enhanced">
+						<div class="et-topbar-left">
+							<button class="et-icon et-sidebar-toggle" title="${__("Toggle menu")}">
+								<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<line x1="3" y1="6" x2="21" y2="6"></line>
+									<line x1="3" y1="12" x2="21" y2="12"></line>
+									<line x1="3" y1="18" x2="21" y2="18"></line>
+								</svg>
+							</button>
+							<button class="et-icon et-sidebar-lock ${this.sidebar_locked ? "et-locked" : ""}"
+								title="${this.sidebar_locked ? __("Unlock menu") : __("Lock menu")}">
+								${this.get_lock_svg(this.sidebar_locked)}
+							</button>
+							<div class="et-nav-brand pos-navbar-logo">
+								<img src="/assets/ethiotel_pos/images/tele.jpg" alt="logo" />
+							</div>
+						</div>
+						<div class="et-topbar-right">
+							<span class="et-nav-clock"><span></span></span>
+							<button class="et-icon et-network-status" title="${__("Network status")}">${this.get_icon_svg("network")}</button>
+							<button class="et-icon et-invoices-icon" title="${__("Invoices")}">${this.get_icon_svg("invoice")}</button>
+							<button class="et-icon et-sync-icon" title="${__("Sync")}">${this.get_icon_svg("sync")}</button>
+							<button class="et-icon et-barcode-icon" title="${__("Scan barcode")}">${this.get_icon_svg("barcode")}</button>
+							<div class="et-actions-dropdown">
+								<button class="et-icon et-actions-btn">${__("Actions")} ▾</button>
+								<ul class="et-actions-menu">
+									<li class="et-action-return">${__("Return Invoice")}</li>
+									<li class="et-action-resync">${__("Resync")}</li>
+									<li class="et-action-print-last">${__("Print Last Invoice")}</li>
+									<li class="et-action-send-mor">${__("Send to MoR")}</li>
+								</ul>
+							</div>
+							<div class="et-profile-dropdown">
+								<button class="et-profile-btn">${frappe.utils.escape_html(frappe.session.user_fullname || frappe.session.user)} ▾</button>
+								<ul class="et-profile-menu">
+									<li class="et-profile-shifttime">${__("Shift Time")}</li>
+									<li class="et-profile-myprofile">${__("My Profile")}</li>
+									<li class="et-profile-apps">${__("Apps")}</li>
+									<li class="et-profile-toggle-width">${__("Toggle Full Width")}</li>
+									<li class="et-profile-signout">${__("Sign Out")}</li>
+								</ul>
+							</div>
+						</div>
+					</header>
+					<div class="et-view-container">
+						<div class="point-of-sale-app et-view et-view-pos"></div>
+						<div class="et-view et-view-dashboard"></div>
+						<div class="et-view et-view-held"></div>
+						<div class="et-view et-view-history"></div>
+						<div class="et-view et-view-invoices"></div>
+						<div class="et-view et-view-report"></div>
+					</div>
+				</div>
+			</div>
+		`);
 
-		this.$components_wrapper = this.wrapper.find(".point-of-sale-app");
+		// only the .point-of-sale-app / et-view-pos container hosts the live
+		// selling-screen components (item selector, cart, payment, etc.)
+		this.$components_wrapper = this.wrapper.find(".et-view-pos");
+	}
+
+	get_icon_svg(name) {
+		const icons = {
+			network: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>`,
+			invoice: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>`,
+			sync: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+			barcode: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5v14M7 5v14M11 5v14M14 5v14M18 5v14M21 5v14" stroke-linecap="round"/></svg>`,
+		};
+		return icons[name] || "";
 	}
 
 	prepare_components() {
@@ -265,7 +834,7 @@ erpnext.PointOfSale.Controller = class {
 	}
 
 	save_draft_invoice() {
-		if (!this.$components_wrapper.is(":visible")) return;
+		if (this.current_view !== "pos") return;
 
 		if (this.frm.doc.items.length == 0) {
 			frappe.show_alert({
@@ -293,18 +862,39 @@ erpnext.PointOfSale.Controller = class {
 			});
 	}
 
+	/* -------------------------------------------------------------------
+	   Close Shift
+	   Creates & properly SYNCS a new POS Closing Entry (pre-filled from the
+	   current opening voucher) before routing to its form so the user can
+	   review totals and submit. Previously this used
+	   frappe.model.get_new_doc() without syncing/naming the doc via
+	   make_new_doc_and_get_name(), so frappe.set_route() could land on a
+	   route with nothing loaded in frappe.model.locals.
+	   ------------------------------------------------------------------- */
 	close_pos() {
-		if (!this.$components_wrapper.is(":visible")) return;
+		if (!this.pos_opening) {
+			frappe.msgprint(__("No open shift found."));
+			return;
+		}
 
-		let voucher = frappe.model.get_new_doc("POS Closing Entry");
-		voucher.pos_profile = this.frm.doc.pos_profile;
-		voucher.user = frappe.session.user;
-		voucher.company = this.frm.doc.company;
-		voucher.pos_opening_entry = this.pos_opening;
-		voucher.period_end_date = frappe.datetime.now_datetime();
-		voucher.posting_date = frappe.datetime.now_date();
-		voucher.posting_time = frappe.datetime.now_time();
-		frappe.set_route("Form", "POS Closing Entry", voucher.name);
+		frappe.confirm(__("Close the current shift and go to the Closing Entry form?"), () => {
+			frappe.model.with_doctype("POS Closing Entry", () => {
+				const name = frappe.model.make_new_doc_and_get_name("POS Closing Entry", true);
+				const voucher = frappe.model.get_doc("POS Closing Entry", name);
+
+				voucher.pos_profile = this.pos_profile;
+				voucher.user = frappe.session.user;
+				voucher.company = this.company;
+				voucher.pos_opening_entry = this.pos_opening;
+				voucher.period_start_date = this.pos_opening_time;
+				voucher.period_end_date = frappe.datetime.now_datetime();
+				voucher.posting_date = frappe.datetime.now_date();
+				voucher.posting_time = frappe.datetime.now_time();
+
+				frappe.model.sync(voucher);
+				frappe.set_route("Form", "POS Closing Entry", voucher.name);
+			});
+		});
 	}
 
 	init_item_selector() {
@@ -332,6 +922,17 @@ erpnext.PointOfSale.Controller = class {
 					this.item_details.toggle_item_details_section(item_row);
 				},
 
+				// Points item_details at a cart row so the numpad "remove"
+				// action works, WITHOUT opening the details modal.
+				select_cart_item: (name) => {
+					const item_row = this.get_item_from_frm({ name });
+					if (!item_row || !item_row.name) return;
+					this.item_details.doctype = item_row.doctype;
+					this.item_details.name = item_row.name;
+					this.item_details.item_row = item_row;
+					this.item_details.current_item = item_row;
+				},
+
 				numpad_event: (value, action) => this.update_item_field(value, action),
 
 				checkout: () => this.save_and_checkout(),
@@ -344,8 +945,35 @@ erpnext.PointOfSale.Controller = class {
 					// will add/remove LP payment method
 					this.payment.render_loyalty_points_payment_mode();
 				},
+
+				save_and_print: () => this.save_and_print("EIMS POS Receipt"),
+				print_invoice: () => this.save_and_print("EIMS Invoice"),
 			},
 		});
+	}
+
+	save_and_print(print_format) {
+		if (this.frm.doc.items.length == 0) {
+			frappe.show_alert({
+				message: __("You must add atleast one item to print."),
+				indicator: "orange",
+			});
+			frappe.utils.play_sound("error");
+			return;
+		}
+
+		frappe.run_serially([
+			() => this.frm.save(),
+			() => {
+				frappe.utils.print(
+					this.frm.doc.doctype,
+					this.frm.doc.name,
+					print_format,
+					this.frm.doc.letter_head,
+					this.frm.doc.language || frappe.boot.lang
+				);
+			},
+		]);
 	}
 
 	init_item_details() {
@@ -356,7 +984,8 @@ erpnext.PointOfSale.Controller = class {
 				get_frm: () => this.frm,
 
 				toggle_item_selector: (minimize) => {
-					this.item_selector.resize_selector(minimize);
+					// Item details now opens as a modal overlay, so no grid
+					// resizing or payment / item-details card swapping is needed.
 					this.cart.toggle_numpad(minimize);
 				},
 
@@ -428,12 +1057,8 @@ erpnext.PointOfSale.Controller = class {
 				get_customer_details: () => this.customer_details || {},
 
 				toggle_other_sections: (show) => {
-					if (show) {
-						this.item_details.$component.is(":visible")
-							? this.item_details.$component.css("display", "none")
-							: "";
-						this.item_selector.toggle_component(false);
-					} else {
+					// item details is a modal overlay now, nothing to hide
+					if (!show) {
 						this.item_selector.toggle_component(true);
 					}
 				},
@@ -512,6 +1137,7 @@ erpnext.PointOfSale.Controller = class {
 	}
 
 	toggle_recent_order_list(show) {
+		this.show_view("pos");
 		this.toggle_components(!show);
 		this.recent_order_list.toggle_component(show);
 		this.order_summary.toggle_component(show);
@@ -605,6 +1231,7 @@ erpnext.PointOfSale.Controller = class {
 	}
 
 	async on_cart_update(args) {
+		this.show_view("pos");
 		frappe.dom.freeze();
 		if (this.frm.doc.set_warehouse !== this.settings.warehouse) {
 			this.frm.set_value("set_warehouse", this.settings.warehouse);
@@ -636,6 +1263,12 @@ erpnext.PointOfSale.Controller = class {
 							"serial_no",
 							item_row.serial_no + `\n${item.serial_no}`
 						);
+					}
+					if (["discount_percentage", "rate", "qty", "conversion_factor", "uom"].includes(field)) {
+						await this.frm.script_manager.trigger(field, item_row.doctype, item_row.name);
+						if (["discount_percentage", "rate"].includes(field)) {
+							await this.frm.script_manager.trigger("qty", item_row.doctype, item_row.name);
+						}
 					}
 					this.update_cart_html(item_row);
 				}

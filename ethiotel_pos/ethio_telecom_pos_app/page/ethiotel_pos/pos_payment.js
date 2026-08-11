@@ -291,8 +291,12 @@ erpnext.PointOfSale.Payment = class {
 			: doc.rounded_total;
 		const remaining_amount = grand_total - doc.paid_amount;
 		const current_value = this.selected_mode ? this.selected_mode.get_value() : undefined;
-		if (!current_value && remaining_amount > 0 && this.selected_mode) {
-			this.selected_mode.set_value(remaining_amount);
+
+		// fill the cost immediately when a payment method is selected, and
+		// reset the previous value / numpad entry to zero
+		this.numpad_value = "";
+		if (this.selected_mode) {
+			this.selected_mode.set_value(remaining_amount > 0 ? remaining_amount : 0);
 		}
 	}
 
@@ -356,6 +360,7 @@ erpnext.PointOfSale.Payment = class {
 	edit_cart() {
 		this.events.toggle_other_sections(false);
 		this.toggle_component(false);
+		$(".point-of-sale-app").removeClass("et-checkout-mode");
 	}
 
 	checkout() {
@@ -366,6 +371,9 @@ erpnext.PointOfSale.Payment = class {
 		frm.refresh_field("base_paid_amount");
 		this.events.toggle_other_sections(true);
 		this.toggle_component(true);
+
+		// cart 50% / payment 50%
+		$(".point-of-sale-app").addClass("et-checkout-mode");
 
 		this.render_payment_section();
 		this.after_render();

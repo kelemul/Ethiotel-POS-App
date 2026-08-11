@@ -1,7 +1,3 @@
-/* =========================================================================
-   Ethio Telecom / Tele POS — EIMS-style UX + OFFLINE support
-   Loaded app-wide; self-guards to POS pages.
-   ========================================================================= */
 
 frappe.provide("ethiotel_pos");
 
@@ -106,7 +102,13 @@ ethiotel_pos.update_offline_badge = function () {
 	}
 	if (!$badge.length) {
 		$badge = $('<span class="et-offline-badge"></span>');
-		$(".navbar-right").prepend($badge);
+		if ($('.navbar-right').length) {
+			$('.navbar-right').prepend($badge);
+		} else if ($('.et-topbar-right').length) {
+			$('.et-topbar-right').prepend($badge);
+		} else {
+			$('body').prepend($badge);
+		}
 	}
 	$badge.text(ethiotel_pos.is_online() ? __("{0} to sync", [pending]) : __("OFFLINE") + " (" + pending + ")");
 };

@@ -6,7 +6,7 @@ import json
 
 import frappe
 from frappe.query_builder import DocType, Order
-from frappe.utils import cint
+from frappe.utils import add_days, cint, flt, getdate
 from frappe.utils.nestedset import get_root_of
 
 from erpnext.accounts.doctype.pos_invoice.pos_invoice import get_item_group, get_stock_availability
@@ -295,7 +295,17 @@ def get_item_group_condition(pos_profile):
 def item_group_query(doctype, txt, searchfield, start, page_len, filters):
 	item_groups = []
 	cond = "1=1"
-	pos_profile = filters.get("pos_profile")
+
+	# `filters` may be passed as a JSON string from the client (XHR),
+	# so ensure we have a dict to call .get on.
+	try:
+		if isinstance(filters, str):
+			filters = json.loads(filters)
+	except Exception:
+		# best-effort: if parsing fails, make filters an empty dict
+		filters = {}
+
+	pos_profile = (filters or {}).get("pos_profile")
 
 	if pos_profile:
 		item_groups = get_item_groups(pos_profile)
@@ -373,6 +383,130 @@ def get_past_order_list(search_term, status, limit=20):
 		)
 
 	return invoice_list
+
+
+@frappe.whitelist()
+def get_dashboard_metrics(pos_profile=None):
+	"""Return simple dashboard metrics for POS page."""
+	from frappe.utils import today
+
+	metrics = {
+		"sales_today": 0.0,
+		"invoices_today": 0,
+		"held_orders": 0,
+	}
+
+	# sales today: sum grand_total for submitted POS Invoices with today's posting_date
+	try:
+		sales = frappe.db.sql(
+			"select sum(grand_total) as total, count(name) as cnt from `tabPOS Invoice` "
+			"where posting_date = %s and docstatus = 1",
+			(today(),),
+			as_dict=1,
+		)
+		if sales and sales[0]:
+			metrics["sales_today"] = float(sales[0].get("total") or 0.0)
+			metrics["invoices_today"] = int(sales[0].get("cnt") or 0)
+	except Exception:
+		pass
+
+	try:
+		# held orders: POS Invoice draft rows (docstatus = 0)
+		metrics["held_orders"] = frappe.db.count("POS Invoice", {"docstatus": 0})
+	except Exception:
+		metrics["held_orders"] = 0
+
+	return metrics
+
+
+@frappe.whitelist()
+def get_last_invoice():
+	"""Return the most recently created POS Invoice name, or None."""
+	try:
+		res = frappe.db.get_list("POS Invoice", fields=["name"], limit=1, order_by="creation desc")
+		return res[0]["name"] if res else None
+	except Exception:
+		return None
+
+
+@frappe.whitelist()
+def get_shift_summary(pos_opening=None):
+	"""Sales made so far during the current (still-open) shift.
+
+	Used by the "Shift Time" item in the profile dropdown on the POS page.
+	"""
+	summary = {"sales_total": 0.0, "invoice_count": 0}
+
+	if not pos_opening:
+		return summary
+
+	period_start_date = frappe.db.get_value("POS Opening Entry", pos_opening, "period_start_date")
+	if not period_start_date:
+		return summary
+
+	rows = frappe.db.sql(
+		"""
+		select sum(grand_total) as total, count(name) as cnt
+		from `tabPOS Invoice`
+		where docstatus = 1 and creation >= %s
+		""",
+		(period_start_date,),
+		as_dict=1,
+	)
+
+	if rows and rows[0]:
+		summary["sales_total"] = float(rows[0].get("total") or 0.0)
+		summary["invoice_count"] = int(rows[0].get("cnt") or 0)
+
+	return summary
+
+
+@frappe.whitelist()
+def get_sales_report(from_date=None, to_date=None, pos_profile=None):
+	"""Simple sales summary + breakdown by mode of payment for the Report view."""
+	from_date = getdate(from_date) if from_date else getdate(add_days(frappe.utils.today(), -30))
+	to_date = getdate(to_date) if to_date else getdate()
+
+	conditions = "docstatus = 1 and posting_date between %(from_date)s and %(to_date)s"
+	values = {"from_date": from_date, "to_date": to_date}
+
+	if pos_profile:
+		conditions += " and pos_profile = %(pos_profile)s"
+		values["pos_profile"] = pos_profile
+
+	totals = frappe.db.sql(
+		f"""
+		select sum(grand_total) as total, count(name) as cnt
+		from `tabPOS Invoice`
+		where {conditions}
+		""",
+		values,
+		as_dict=1,
+	)
+
+	total_sales = float(totals[0].get("total") or 0.0) if totals else 0.0
+	invoice_count = int(totals[0].get("cnt") or 0) if totals else 0
+	avg_sale = flt(total_sales / invoice_count) if invoice_count else 0.0
+
+	by_payment_mode = frappe.db.sql(
+		f"""
+		select sip.mode_of_payment as mode_of_payment, sum(sip.amount) as amount
+		from `tabSales Invoice Payment` sip
+		inner join `tabPOS Invoice` pi on pi.name = sip.parent
+		where pi.{conditions}
+		group by sip.mode_of_payment
+		order by amount desc
+		""",
+		values,
+		as_dict=1,
+	)
+
+	return {
+		"total_sales": total_sales,
+		"invoice_count": invoice_count,
+		"avg_sale": avg_sale,
+		"by_payment_mode": by_payment_mode,
+	}
 
 
 @frappe.whitelist()

@@ -7,6 +7,8 @@ erpnext.PointOfSale.ItemCart = class {
 		this.allowed_customer_groups = settings.customer_groups;
 		this.allow_rate_change = settings.allow_rate_change;
 		this.allow_discount_change = settings.allow_discount_change;
+		// 'percentage' or 'value' — which discount field is currently active
+		this.discount_mode = "percentage";
 		this.init_component();
 	}
 
@@ -49,7 +51,10 @@ erpnext.PointOfSale.ItemCart = class {
 					<div class="cart-header">
 						<div class="name-header">${__("Item")}</div>
 						<div class="qty-header">${__("Quantity")}</div>
-						<div class="rate-amount-header">${__("Amount")}</div>
+						<div class="unit-header">${__("Unit")}</div>
+						<div class="vat-header">${__("VAT %")}</div>
+						<div class="total-header">${__("Total")}</div>
+						<div class="action-header" title="${__("Remove")}">✕</div>
 					</div>
 					<div class="cart-items-section"></div>
 					<div class="cart-totals-section"></div>
@@ -62,6 +67,134 @@ erpnext.PointOfSale.ItemCart = class {
 		this.make_cart_totals_section();
 		this.make_cart_items_section();
 		this.make_cart_numpad();
+		this.bind_cart_row_actions();
+	}
+
+	/* ------------------------------------------------------------------
+	   Per-row action handlers (Qty +/- buttons, Delete icon).
+	   Directly mutate the underlying frm.doc row and refresh the view.
+	   ------------------------------------------------------------------ */
+	bind_cart_row_actions() {
+		const me = this;
+
+		// PLUS button: qty += 1
+		this.$cart_items_wrapper.off("click.cart-plus")
+			.on("click.cart-plus", ".cart-qty-plus", function (e) {
+				e.stopPropagation();
+				const $row = $(this).closest(".cart-item-wrapper");
+				const rowName = unescape($row.attr("data-row-name"));
+				me.update_qty_by_delta(rowName, +1);
+			});
+
+		// MINUS button: qty -= 1 (minimum 1; user clicks DELETE to remove)
+		this.$cart_items_wrapper.off("click.cart-minus")
+			.on("click.cart-minus", ".cart-qty-minus", function (e) {
+				e.stopPropagation();
+				const $row = $(this).closest(".cart-item-wrapper");
+				const rowName = unescape($row.attr("data-row-name"));
+				me.update_qty_by_delta(rowName, -1);
+			});
+
+		// EYE button: open item details modal for this row
+		this.$cart_items_wrapper.off("click.cart-eye")
+			.on("click.cart-eye", ".cart-eye-btn", function (e) {
+				e.stopPropagation();
+				const $row = $(this).closest(".cart-item-wrapper");
+				const rowName = unescape($row.attr("data-row-name"));
+				me.open_cart_item_details(rowName);
+			});
+
+		// DELETE (trash) icon — entire row
+		this.$cart_items_wrapper.off("click.cart-delete")
+			.on("click.cart-delete", ".cart-delete-btn", function (e) {
+				e.stopPropagation();
+				const $row = $(this).closest(".cart-item-wrapper");
+				const rowName = unescape($row.attr("data-row-name"));
+				me.delete_cart_row(rowName);
+			});
+	}
+
+	open_cart_item_details(rowName) {
+		const frm = this.events.get_frm();
+		if (!frm || !frm.doc) return;
+		const row = frm.doc.items.find((d) => d.name === rowName);
+		if (!row) return;
+
+		// if payment section is visible, go back to cart editing first
+		const payment_section_hidden = !this.$totals_section.find(".edit-cart-btn").is(":visible");
+		if (!payment_section_hidden) {
+			this.$totals_section.find(".edit-cart-btn").click();
+		}
+
+		this.toggle_item_highlight(
+			this.$cart_items_wrapper.find(`.cart-item-wrapper[data-row-name='${escape(rowName)}']`)
+		);
+		this.numpad_value = "";
+		this.events.cart_item_clicked && this.events.cart_item_clicked({ name: rowName });
+	}
+
+	async update_qty_by_delta(rowName, delta) {
+		const frm = this.events.get_frm();
+		if (!frm || !frm.doc) return;
+		const row = frm.doc.items.find((d) => d.name === rowName);
+		if (!row) return;
+		const newQty = flt(row.qty) + flt(delta);
+		if (newQty <= 0) {
+			// Treat as remove
+			return this.delete_cart_row(rowName);
+		}
+		// Trigger the normal on_cart_update pipeline so stock check runs.
+		if (this.events && this.events.item_selected) {
+			const item = {
+				item_code: row.item_code,
+				batch_no: row.batch_no,
+				serial_no: row.serial_no,
+				uom: row.uom,
+				rate: row.rate,
+				stock_uom: row.stock_uom,
+				name: rowName,
+			};
+			await this.events.item_selected({
+				field: "qty",
+				value: newQty,
+				item,
+			});
+		} else {
+			frappe.model.set_value(row.doctype, rowName, "qty", newQty);
+		}
+	}
+
+	async delete_cart_row(rowName) {
+		const frm = this.events.get_frm();
+		if (!frm || !frm.doc) return;
+		const row = frm.doc.items.find((d) => d.name === rowName);
+		if (!row) return;
+
+		// Route through the main remove flow if available (via numpad "Remove"
+		// action in the controller). Otherwise fall back to clearing doc row.
+		if (this.events && this.events.numpad_event) {
+			// Mark this row as the active item WITHOUT opening the details modal
+			if (this.events.select_cart_item) {
+				this.events.select_cart_item(rowName);
+			}
+			this.$cart_items_wrapper
+				.find(`.cart-item-wrapper[data-row-name='${escape(rowName)}']`)
+				.addClass("selected");
+			this.events.numpad_event("", "remove");
+		} else {
+			frappe.dom.freeze();
+			frappe.model.set_value(row.doctype, rowName, "qty", 0)
+				.then(() => {
+					frappe.model.clear_doc(row.doctype, rowName);
+					this.update_cart_html({ name: rowName }, true);
+					this.events && this.events.close_item_details && this.events.close_item_details();
+					frappe.dom.unfreeze();
+				})
+				.catch((e) => {
+					console.log(e);
+					frappe.dom.unfreeze();
+				});
+		}
 	}
 
 	make_cart_items_section() {
@@ -104,6 +237,14 @@ erpnext.PointOfSale.ItemCart = class {
 			<div class="grand-total-container">
 				<div>${__("Grand Total")}</div>
 				<div>0.00</div>
+			</div>
+			<div class="cart-print-btns">
+				<div class="cart-print-btn save-and-print-btn" title="${__("Save and print receipt")}">
+					${__("Save & Print")}
+				</div>
+				<div class="cart-print-btn print-invoice-btn" title="${__("Save and print invoice")}">
+					${__("Print Invoice")}
+				</div>
 			</div>
 			<div class="checkout-btn">${__("Checkout")}</div>
 			<div class="edit-cart-btn">${__("Edit Cart")}</div>`
@@ -167,20 +308,20 @@ erpnext.PointOfSale.ItemCart = class {
 		});
 
 		this.$cart_items_wrapper.on("click", ".cart-item-wrapper", function () {
-			const $cart_item = $(this);
-
 			me.toggle_item_highlight(this);
+
+			// point item_details at this row (without opening the modal) so the
+			// numpad Remove action targets the row the user last clicked
+			const $cart_item = $(this);
+			const item_row_name = unescape($cart_item.attr("data-row-name"));
+			me.events.select_cart_item && me.events.select_cart_item(item_row_name);
 
 			const payment_section_hidden = !me.$totals_section.find(".edit-cart-btn").is(":visible");
 			if (!payment_section_hidden) {
 				// payment section is visible
-				// edit cart first and then open item details section
+				// edit cart first so qty +/- remain usable
 				me.$totals_section.find(".edit-cart-btn").click();
 			}
-
-			const item_row_name = unescape($cart_item.attr("data-row-name"));
-			me.events.cart_item_clicked({ name: item_row_name });
-			this.numpad_value = "";
 		});
 
 		this.$component.on("click", ".checkout-btn", async function () {
@@ -191,6 +332,14 @@ erpnext.PointOfSale.ItemCart = class {
 			me.disable_customer_selection();
 
 			me.allow_discount_change && me.$add_discount_elem.removeClass("d-none");
+		});
+
+		this.$totals_section.on("click", ".save-and-print-btn", () => {
+			me.events.save_and_print();
+		});
+
+		this.$totals_section.on("click", ".print-invoice-btn", () => {
+			me.events.print_invoice();
 		});
 
 		this.$totals_section.on("click", ".edit-cart-btn", () => {
@@ -383,46 +532,123 @@ erpnext.PointOfSale.ItemCart = class {
 		}
 	}
 
+	/* -------------------------------------------------------------------
+	   Discount control: percentage vs. value toggle.
+
+	   Fixes applied vs. the previous version:
+	   - Switching modes now zeroes out the *other* discount field on the
+	     doc, so a stale additional_discount_percentage and discount_amount
+	     can never both be set at the same time.
+	   - Totals are refreshed immediately after the field commits (the old
+	     code relied on an unrelated "paid_amount" form event firing later).
+	   - The "applied" pill now shows the right label/format for whichever
+	     mode produced it (percentage vs. currency amount).
+	   ------------------------------------------------------------------- */
 	show_discount_control() {
 		this.$add_discount_elem.css({ padding: "0px", border: "none" });
-		this.$add_discount_elem.html(`<div class="add-discount-field"></div>`);
+		this.$add_discount_elem.html(
+			`<div class="add-discount-field">
+				<div class="et-discount-control" style="display:flex;gap:6px;align-items:center;width:100%"></div>
+			</div>`
+		);
 		const me = this;
 		const frm = me.events.get_frm();
-		let discount = frm.doc.additional_discount_percentage;
 
-		this.discount_field = frappe.ui.form.make_control({
-			df: {
-				label: __("Discount"),
-				fieldtype: "Data",
-				placeholder: discount ? discount + "%" : __("Enter discount percentage."),
-				input_class: "input-xs",
-				onchange: function () {
-					this.value = flt(this.value);
-					if (this.value > 100) {
-						frappe.msgprint({
-							title: __("Invalid Discount"),
-							indicator: "red",
-							message: __("Discount cannot be greater than 100%."),
-						});
-						this.value = 0;
-					}
-					frappe.model.set_value(
-						frm.doc.doctype,
-						frm.doc.name,
-						"additional_discount_percentage",
-						flt(this.value)
-					);
-					me.hide_discount_control(this.value);
+		const current_value = () =>
+			this.discount_mode === "percentage"
+				? frm.doc.additional_discount_percentage
+				: frm.doc.discount_amount;
+
+		const make_field = () => {
+			this.discount_field = frappe.ui.form.make_control({
+				df: {
+					label: __("Discount"),
+					fieldtype: "Data",
+					placeholder:
+						this.discount_mode === "percentage"
+							? __("Enter discount percentage.")
+							: __("Enter discount amount"),
+					input_class: "input-xs",
+					onchange: function () {
+						this.value = flt(this.value);
+
+						const set_active_field =
+							me.discount_mode === "percentage"
+								? frappe.model.set_value(
+										frm.doc.doctype,
+										frm.doc.name,
+										"additional_discount_percentage",
+										flt(this.value)
+								  )
+								: frappe.model.set_value(
+										frm.doc.doctype,
+										frm.doc.name,
+										"discount_amount",
+										flt(this.value)
+								  );
+
+						if (me.discount_mode === "percentage" && this.value > 100) {
+							frappe.msgprint({
+								title: __("Invalid Discount"),
+								indicator: "red",
+								message: __("Discount cannot be greater than 100%."),
+							});
+							this.value = 0;
+							frappe.model.set_value(
+								frm.doc.doctype,
+								frm.doc.name,
+								"additional_discount_percentage",
+								0
+							);
+						}
+
+						// clear whichever discount field is NOT the active mode
+						const other_field =
+							me.discount_mode === "percentage" ? "discount_amount" : "additional_discount_percentage";
+
+						Promise.resolve(set_active_field)
+							.then(() => frappe.model.set_value(frm.doc.doctype, frm.doc.name, other_field, 0))
+							.then(() => me.update_totals_section(frm))
+							.then(() => me.hide_discount_control(this.value));
+					},
 				},
-			},
-			parent: this.$add_discount_elem.find(".add-discount-field"),
-			render_input: true,
+				parent: this.$add_discount_elem.find(".add-discount-field .et-discount-control"),
+				render_input: true,
+			});
+			this.discount_field.toggle_label(false);
+			this.discount_field.set_value(current_value() || "");
+			this.discount_field.set_focus();
+		};
+
+		make_field();
+
+		// mode toggle button (% <-> currency)
+		const $mode_btn = $(
+			`<button type="button" class="et-discount-mode-btn btn btn-default btn-xs" title="${__(
+				"Toggle discount mode"
+			)}">${this.discount_mode === "percentage" ? "%" : "amt"}</button>`
+		);
+		this.$add_discount_elem.find(".add-discount-field .et-discount-control").prepend($mode_btn);
+
+		$mode_btn.on("click", () => {
+			// zero out whatever was set in the mode we're leaving so it can't
+			// linger and get applied alongside the new mode
+			const leaving_field =
+				this.discount_mode === "percentage" ? "additional_discount_percentage" : "discount_amount";
+
+			this.discount_mode = this.discount_mode === "percentage" ? "value" : "percentage";
+
+			frappe.model.set_value(frm.doc.doctype, frm.doc.name, leaving_field, 0).then(() => {
+				this.update_totals_section(frm);
+				this.show_discount_control(); // rebuild control in the new mode
+			});
 		});
-		this.discount_field.toggle_label(false);
-		this.discount_field.set_focus();
 	}
 
 	hide_discount_control(discount) {
+		const frm = this.events.get_frm();
+		const currency = frm && frm.doc ? frm.doc.currency : undefined;
+
 		if (!flt(discount)) {
 			this.$add_discount_elem.css({
 				border: "1px dashed var(--gray-500)",
@@ -431,13 +657,18 @@ erpnext.PointOfSale.ItemCart = class {
 			this.$add_discount_elem.html(`${this.get_discount_icon()} ${__("Add Discount")}`);
 			this.discount_field = undefined;
 		} else {
+			const label =
+				this.discount_mode === "percentage"
+					? `${String(discount).bold()}%`
+					: format_currency(discount, currency);
+
 			this.$add_discount_elem.css({
 				border: "1px dashed var(--dark-green-500)",
 				padding: "var(--padding-sm) var(--padding-md)",
 			});
 			this.$add_discount_elem.html(
 				`<div class="edit-discount-btn">
-					${this.get_discount_icon()} ${__("Additional")}&nbsp;${String(discount).bold()}% ${__("discount applied")}
+					${this.get_discount_icon()} ${label} ${__("discount applied")}
 				</div>`
 			);
 		}
@@ -592,81 +823,127 @@ erpnext.PointOfSale.ItemCart = class {
 	}
 
 	render_cart_item(item_data, $item_to_update) {
-		const currency = this.events.get_frm().doc.currency;
+		const frm = this.events.get_frm();
+		const currency = frm.doc.currency;
 		const me = this;
 
 		if (!$item_to_update.length) {
+			// Seperator divs are removed — grid rows have their own border-bottom.
 			this.$cart_items_wrapper.append(
-				`<div class="cart-item-wrapper" data-row-name="${escape(item_data.name)}"></div>
-				<div class="seperator"></div>`
+				`<div class="cart-item-wrapper" data-row-name="${escape(item_data.name)}"></div>`
 			);
 			$item_to_update = this.get_cart_item(item_data);
 		}
 
-		$item_to_update.html(
-			`${get_item_image_html()}
-			<div class="item-name-desc">
-				<div class="item-name">
-					${item_data.item_name}
-				</div>
-				${get_description_html()}
-			</div>
-			${get_rate_discount_html()}`
-		);
+		const descriptionHtml = get_description_html();
+		const imgHtml = get_item_image_html();
+		// VAT% for the row: estimate using first tax table's rate applied to
+		// this row's tax_rate object OR use row's net-to-grand-total ratio.
+		const vatPct = get_vat_pct();
+		const unitRate = flt(item_data.rate) || 0;
+		const lineTotal = flt(item_data.amount) || 0;
+		const qty = flt(item_data.qty) || 0;
 
+		$item_to_update.html(`
+			<div class="item-name-desc">
+				${imgHtml}
+				<div class="item-name-desc-text">
+					<div class="item-name" title="${frappe.utils.escape_html(item_data.item_name || '')}">
+						${frappe.utils.escape_html(item_data.item_name)}
+					</div>
+					${descriptionHtml}
+				</div>
+			</div>
+
+			<div class="cart-qty-wrap">
+				<button class="cart-qty-btn cart-qty-minus" type="button" title="${__('Decrease')}" ${qty <= 1 ? 'disabled' : ''}>
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				</button>
+				<span class="cart-qty-val">${qty}<span class="cart-qty-uom">${frappe.utils.escape_html(item_data.uom || '')}</span></span>
+				<button class="cart-qty-btn cart-qty-plus" type="button" title="${__('Increase')}">
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				</button>
+			</div>
+
+			<div class="cart-unit">${format_currency(unitRate, currency)}</div>
+
+			<div class="cart-vat">${vatPct}</div>
+
+			<div class="cart-total">${format_currency(lineTotal, currency)}</div>
+
+			<div class="cart-actions">
+				<button class="cart-eye-btn" type="button" title="${__('View item details')}">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+						<circle cx="12" cy="12" r="3"></circle>
+					</svg>
+				</button>
+				<button class="cart-delete-btn" type="button" title="${__('Remove item')}">
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="3 6 5 6 21 6"></polyline>
+						<path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"></path>
+						<path d="M10 11v6M14 11v6"></path>
+						<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+					</svg>
+				</button>
+			</div>
+		`);
+
+		// The old dynamic rate-header width logic is obsolete with the grid
+		// layout (each column has an explicit proportional width defined in
+		// CSS), but leave a no-op here for safety.
+		function set_dynamic_rate_header_width() {
+			return;
+		}
 		set_dynamic_rate_header_width();
 
-		function set_dynamic_rate_header_width() {
-			const rate_cols = Array.from(me.$cart_items_wrapper.find(".item-rate-amount"));
-			me.$cart_header.find(".rate-amount-header").css("width", "");
-			me.$cart_items_wrapper.find(".item-rate-amount").css("width", "");
-			let max_width = rate_cols.reduce((max_width, elm) => {
-				if ($(elm).width() > max_width) max_width = $(elm).width();
-				return max_width;
-			}, 0);
-
-			max_width += 1;
-			if (max_width == 1) max_width = "";
-
-			me.$cart_header.find(".rate-amount-header").css("width", max_width);
-			me.$cart_items_wrapper.find(".item-rate-amount").css("width", max_width);
-		}
-
-		function get_rate_discount_html() {
-			if (item_data.rate && item_data.amount && item_data.rate !== item_data.amount) {
-				return `
-					<div class="item-qty-rate">
-						<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
-						<div class="item-rate-amount">
-							<div class="item-rate">${format_currency(item_data.amount, currency)}</div>
-							<div class="item-amount">${format_currency(item_data.rate, currency)}</div>
-						</div>
-					</div>`;
-			} else {
-				return `
-					<div class="item-qty-rate">
-						<div class="item-qty"><span>${item_data.qty || 0} ${item_data.uom}</span></div>
-						<div class="item-rate-amount">
-							<div class="item-rate">${format_currency(item_data.rate, currency)}</div>
-						</div>
-					</div>`;
+		function get_vat_pct() {
+			// Strategy 1: item_data has item_tax_rate (Tax Charges column)
+			const itr = item_data.item_tax_rate;
+			if (itr) {
+				let totalRate = 0;
+				if (typeof itr === "string" && itr.trim()) {
+					try { const o = JSON.parse(itr); Object.values(o).forEach(v => totalRate += flt(v)); } catch (_) { /* ignore */ }
+				} else if (typeof itr === "object") {
+					Object.values(itr).forEach(v => totalRate += flt(v));
+				}
+				if (totalRate > 0) {
+					return `${totalRate.toFixed(totalRate % 1 === 0 ? 0 : 1)}%`;
+				}
 			}
+			// Strategy 2: compute effective VAT% from the taxes table
+			const taxes = frm && frm.doc ? frm.doc.taxes : [];
+			if (taxes && taxes.length) {
+				const taxRow = taxes.find(t => flt(t.tax_amount) > 0 && t.charge_type === "On Net Total");
+				if (taxRow) {
+					const rate = flt(taxRow.rate);
+					if (rate > 0) return `${rate.toFixed(rate % 1 === 0 ? 0 : 1)}%`;
+				}
+				const totalTax = taxes.reduce((s, t) => s + flt(t.tax_amount), 0);
+				const netTotal = flt(frm.doc.total);
+				if (totalTax > 0 && netTotal > 0) {
+					const pct = (totalTax / netTotal) * 100;
+					return `${pct.toFixed(1)}%`;
+				}
+			}
+			return "—";
 		}
 
 		function get_description_html() {
 			if (item_data.description) {
-				if (item_data.description.indexOf("<div>") != -1) {
+				let desc = item_data.description;
+				if (desc.indexOf("<div>") != -1) {
 					try {
-						item_data.description = $(item_data.description).text();
+						desc = $(desc).text();
 					} catch (error) {
-						item_data.description = item_data.description
+						desc = desc
 							.replace(/<div>/g, " ")
 							.replace(/<\/div>/g, " ")
 							.replace(/ +/g, " ");
 					}
 				}
-				item_data.description = frappe.ellipsis(item_data.description, 45);
-				return `<div class="item-desc">${item_data.description}</div>`;
+				desc = frappe.ellipsis(desc, 50);
+				return `<div class="item-desc">${frappe.utils.escape_html(desc)}</div>`;
 			}
 			return ``;
 		}
@@ -676,13 +953,11 @@ erpnext.PointOfSale.ItemCart = class {
 			if (!me.hide_images && image) {
 				return `
 					<div class="item-image">
-						<img
-							onerror="cur_pos.cart.handle_broken_image(this)"
-							src="${image}" alt="${frappe.get_abbr(item_name)}"">
+						<img onerror="cur_pos.cart.handle_broken_image(this)"
+							src="${frappe.utils.escape_html(image)}" alt="${frappe.get_abbr(item_name)}">
 					</div>`;
-			} else {
-				return `<div class="item-image item-abbr">${frappe.get_abbr(item_name)}</div>`;
 			}
+			return `<div class="item-image item-abbr">${frappe.get_abbr(item_name)}</div>`;
 		}
 	}
 
@@ -742,13 +1017,18 @@ erpnext.PointOfSale.ItemCart = class {
 	update_empty_cart_section(no_of_cart_items) {
 		const $no_item_element = this.$cart_items_wrapper.find(".no-item-wrapper");
 
-		// if cart has items and no item is present
-		no_of_cart_items > 0 &&
-			$no_item_element &&
-			$no_item_element.remove() &&
-			this.$cart_header.css("display", "flex");
-
-		no_of_cart_items === 0 && !$no_item_element.length && this.make_no_items_placeholder();
+		// ----— Cart header is CSS `display: grid` for the 6-column layout — NEVER force it
+		// to display:flex; flex column it the entire all column layout breaks. Show/hide only.
+		if (no_of_cart_items > 0) {
+			if ($no_item_element.length) {
+				$no_item_element.remove();
+			}
+			// Keep display: grid matches the CSS rule — do not change to flex!
+			this.$cart_header.css("display", "");  // clear inline, let CSS grid apply
+			this.$cart_header.show();
+		} else if (!$no_item_element.length) {
+			this.make_no_items_placeholder();
+		}
 	}
 
 	on_numpad_event($btn) {
@@ -1084,7 +1364,17 @@ erpnext.PointOfSale.ItemCart = class {
 			this.highlight_checkout_btn(false);
 		}
 
-		this.hide_discount_control(frm.doc.additional_discount_percentage);
+		// restore whichever discount mode this invoice actually has a value
+		// in, so re-opening a draft doesn't silently show "% " for a
+		// currency-amount discount or vice-versa.
+		if (flt(frm.doc.discount_amount)) {
+			this.discount_mode = "value";
+			this.hide_discount_control(frm.doc.discount_amount);
+		} else {
+			this.discount_mode = "percentage";
+			this.hide_discount_control(frm.doc.additional_discount_percentage);
+		}
+
 		this.update_totals_section(frm);
 
 		if (frm.doc.docstatus === 1) {

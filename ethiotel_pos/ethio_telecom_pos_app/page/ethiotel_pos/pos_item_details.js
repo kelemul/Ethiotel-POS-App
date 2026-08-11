@@ -18,13 +18,17 @@ erpnext.PointOfSale.ItemDetails = class {
 	}
 
 	prepare_dom() {
-		this.wrapper.append(`<section class="item-details-container"></section>`);
+		this.wrapper.append(`<section class="item-details-container">
+			<div class="et-id-backdrop"></div>
+			<div class="et-id-modal-card"></div>
+		</section>`);
 
 		this.$component = this.wrapper.find(".item-details-container");
+		this.$modal_card = this.$component.find(".et-id-modal-card");
 	}
 
 	init_child_components() {
-		this.$component.html(
+		this.$modal_card.html(
 			`<div class="item-details-header">
 				<div class="label">${__("Item Details")}</div>
 				<div class="close-btn">
@@ -239,6 +243,7 @@ erpnext.PointOfSale.ItemDetails = class {
 						const doc = me.events.get_frm().doc;
 						me.$item_price.html(format_currency(item_row.rate, doc.currency));
 						me.render_discount_dom(item_row);
+						me.qty_control && me.qty_control.refresh && me.qty_control.refresh();
 					});
 				}
 			};
@@ -246,8 +251,24 @@ erpnext.PointOfSale.ItemDetails = class {
 			this.rate_control.refresh();
 		}
 
-		if (this.discount_percentage_control && !this.allow_discount_change) {
-			this.discount_percentage_control.df.read_only = 1;
+		if (this.discount_percentage_control) {
+			if (!this.allow_discount_change) {
+				this.discount_percentage_control.df.read_only = 1;
+			} else {
+				this.discount_percentage_control.df.onchange = function () {
+					let value = flt(this.value);
+					if (value < 0) value = 0;
+					if (value > 100) value = 100;
+					me.events.form_updated(me.current_item, "discount_percentage", value).then(() => {
+						const item_row = frappe.get_doc(me.doctype, me.name);
+						const doc = me.events.get_frm().doc;
+						me.$item_price.html(format_currency(item_row.rate, doc.currency));
+						me.render_discount_dom(item_row);
+						me.rate_control && me.rate_control.set_value(item_row.rate);
+						me.rate_control && me.rate_control.refresh && me.rate_control.refresh();
+					});
+				};
+			}
 			this.discount_percentage_control.refresh();
 		}
 
@@ -392,6 +413,9 @@ erpnext.PointOfSale.ItemDetails = class {
 		this.bind_fields_to_numpad_fields();
 
 		this.$component.on("click", ".close-btn", () => {
+			this.events.close_item_details();
+		});
+		this.$component.on("click", ".et-id-backdrop", () => {
 			this.events.close_item_details();
 		});
 	}

@@ -212,6 +212,10 @@ erpnext.PointOfSale.PastOrderSummary = class {
 		this.$summary_container.on("click", ".print-btn", () => {
 			this.print_receipt();
 		});
+
+		this.$summary_container.on("click", ".print-invoice-btn", () => {
+			this.print_invoice();
+		});
 	}
 
 	print_receipt() {
@@ -219,7 +223,18 @@ erpnext.PointOfSale.PastOrderSummary = class {
 		frappe.utils.print(
 			this.doc.doctype,
 			this.doc.name,
-			frm.pos_print_format,
+			frm.pos_print_format || "EIMS POS Receipt",
+			this.doc.letter_head,
+			this.doc.language || frappe.boot.lang
+		);
+	}
+
+	print_invoice() {
+		const frm = this.events.get_frm();
+		frappe.utils.print(
+			this.doc.doctype,
+			this.doc.name,
+			"EIMS Invoice",
 			this.doc.letter_head,
 			this.doc.language || frappe.boot.lang
 		);
@@ -325,17 +340,22 @@ erpnext.PointOfSale.PastOrderSummary = class {
 
 	get_condition_btn_map(after_submission) {
 		if (after_submission)
-			return [{ condition: true, visible_btns: ["Print Receipt", "Email Receipt", "New Order"] }];
+			return [
+				{
+					condition: true,
+					visible_btns: ["Print Receipt", "Print Invoice", "Email Receipt", "New Order"],
+				},
+			];
 
 		return [
 			{ condition: this.doc.docstatus === 0, visible_btns: ["Edit Order", "Delete Order"] },
 			{
 				condition: !this.doc.is_return && this.doc.docstatus === 1,
-				visible_btns: ["Print Receipt", "Email Receipt", "Return"],
+				visible_btns: ["Print Receipt", "Print Invoice", "Email Receipt", "Return"],
 			},
 			{
 				condition: this.doc.is_return && this.doc.docstatus === 1,
-				visible_btns: ["Print Receipt", "Email Receipt"],
+				visible_btns: ["Print Receipt", "Print Invoice", "Email Receipt"],
 			},
 		];
 	}
