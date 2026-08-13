@@ -1,0 +1,22 @@
+/* ethiotel_pos — item details card: base panel styles (modal overlay lives in pos_responsive.css tail)
+   split from ethiotel_pos.css (do not edit order). */
+/* ---------- Item details panel ---------- */
+.item-details-container {
+	min-height: 0;
+}
+.discount-section .item-rate {
+	color: #6c757d;
+	text-decoration: line-through;
+	font-size: 13px;
+	font-weight: 500;
+}
+.discount-section .item-discount {
+	display: inline-block;
+	background: var(--eims-danger);
+	color: #fff;
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 700;
+	margin-left: 6px;
+}

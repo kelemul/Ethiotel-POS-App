@@ -1,0 +1,13 @@
+/* ethiotel_pos — past order list / summary
+   split from ethiotel_pos.css (do not edit order). */
+/* ---------- Recently quantities / past orders ---------- */
+.invoice-wrapper {
+	border-radius: 6px !important;
+	border: 1px solid #dee2e6 !important;
+	transition: box-shadow .12s ease, transform .12s ease;
+}
+.invoice-wrapper:hover {
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .12) !important;
+	transform: translateY(-1px);
+}
+.summary-row-wrapper.grand-total { background: var(--eims-soft); border-radius: 6px; }

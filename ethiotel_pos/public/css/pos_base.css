@@ -1,0 +1,188 @@
+/* ethiotel_pos — base: variables, fullscreen shell, POS app skeleton, detail-mode grid
+   split from ethiotel_pos.css (do not edit order). */
+:root {
+	--eims-green: #1a7a4c;
+	--eims-green2: #145c3a;
+	--eims-green3: #0f4a2e;
+	--eims-lime: #8fbf3f;
+	--eims-teal: #17a2b8;
+	--eims-danger: #dc3545;
+	--eims-warning: #ffc107;
+	--eims-soft: #f4f6f9;
+	--eims-table-head: #f8f9fa;
+	--et-bar-grad: linear-gradient(120deg, #1a7a4c, #2fa16a);
+	--et-app-bg: radial-gradient(1200px 500px at 85% -10%, rgba(26, 122, 76, .10), transparent 60%),
+	             linear-gradient(180deg, #f4f6f9, #eef1f4);
+}
+
+body {
+	background: var(--et-app-bg) !important;
+	background-attachment: fixed;
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* =========================================================================
+   FULLSCREEN POS LAYOUT — hides ERP navbar/sidebar/page-head on POS page
+   ========================================================================= */
+body.ethiopos-fullscreen {
+	background: var(--et-app-bg) !important;
+	overflow-x: hidden;
+}
+
+body.ethiopos-fullscreen .ethiopos-page-container {
+	max-width: 100% !important;
+	width: 100% !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+}
+
+body.ethiopos-fullscreen .ethiopos-layout-main {
+	padding: 0 !important;
+	margin: 0 !important;
+	min-height: 100vh !important;
+	width: 100% !important;
+	max-width: 100% !important;
+}
+
+body.ethiopos-fullscreen #page-ethiotel-pos,
+body.ethiopos-fullscreen [data-page-route='ethiotel-pos'] {
+	padding: 0 !important;
+	margin: 0 !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	min-height: 100vh !important;
+	background: var(--et-app-bg) !important;
+}
+
+body.ethiopos-fullscreen .page-wrapper {
+	padding: 0 !important;
+	margin: 0 !important;
+	width: 100% !important;
+}
+
+body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+	padding: 12px !important;
+}
+
+/* ---------- AdminLTE-style main navbar (hidden on POS page) ---------- */
+.navbar {
+	background: linear-gradient(90deg, var(--eims-green), var(--eims-green2)) !important;
+	border-bottom: 2px solid var(--eims-lime);
+}
+.navbar a, .navbar .navbar-right a { color: #fff !important; }
+.navbar .navbar-right .btn-secondary { background: rgba(255,255,255,.15); border-color: transparent; }
+
+/* ---------- Hide the default Frappe awesomebar on the POS page ---------- */
+body[data-route="ethiotel-pos"] .navbar .search-bar,
+body[data-route="ethiotel-pos"] .navbar .navbar-search,
+body[data-route="ethiotel-pos"] .navbar #navbar-search,
+body[data-route="ethiotel-pos"] .navbar .search-icon,
+body[data-route="ethiotel-pos"] .navbar [data-label="Search"] {
+	display: none !important;
+}
+
+/* ---------- Page header ---------- */
+.page-head { background: transparent !important; }
+.page-head .page-title::after {
+	content: "";
+	display: block;
+	height: 4px;
+	width: 70px;
+	margin-top: 6px;
+	border-radius: 4px;
+	background: var(--et-bar-grad);
+}
+
+/* =========================================================================
+   POS — EIMS "Side Invoice"
+   ========================================================================= */
+.point-of-sale-app {
+	--pos-accent: var(--eims-green);
+	--pos-accent-2: var(--eims-green2);
+	padding: 0 !important;
+	grid-gap: 12px !important;
+	gap: 12px !important;
+	min-height: 0 !important;
+	height: 100% !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	flex: 1 1 auto;
+}
+
+.point-of-sale-app section {
+	border-radius: 8px !important;
+	background: #fff !important;
+	border: 1px solid #dee2e6 !important;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, .05) !important;
+	overflow: hidden;
+}
+
+
+.point-of-sale-app {
+	display: grid !important;
+	grid-template-columns: minmax(320px, .9fr) minmax(0, 1.3fr);
+	grid-template-rows: minmax(0, 1fr);
+	gap: 12px;
+	align-items: stretch;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+}
+
+/* CART = entire LEFT column */
+.point-of-sale-app > .customer-cart-container {
+	grid-column: 1 / 2;
+	grid-row: 1 / -1;
+	min-height: 0;
+	min-width: 0;
+	height: 50%;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Every OTHER direct child (items-selector, item-details-container,
+   payment, recent-order-list, order-summary, etc.) goes in the RIGHT
+   column, stacked in a FLEX column so each takes its natural height. */
+.point-of-sale-app > :not(.customer-cart-container) {
+	grid-column: 2 / 3;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* Give the Item Selector priority in the right column — it should be the
+   tallest. Other cards below it shrink to content. */
+.point-of-sale-app > .items-selector {
+	display: flex !important;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	width: 100%;
+	height: auto;
+	visibility: visible !important;
+	opacity: 1 !important;
+}
+.point-of-sale-app > .items-selector,
+.point-of-sale-app > .items-selector * {
+	visibility: visible !important;
+}
+.point-of-sale-app > .item-details-container,
+.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+	min-height: 0;
+	min-width: 0;
+}
+/* Detail mode: when item-details panel is open + focused, shrink the cart
+   and give the rest of the space to the right column. On small screens this
+   does nothing. */
+@media (min-width: 768px) {
+	.point-of-sale-app.et-detail-mode {
+		grid-template-columns: minmax(260px, .65fr) minmax(0, 1.55fr) !important;
+	}
+	.point-of-sale-app.et-detail-mode > .customer-cart-container {
+		min-width: 0;
+		overflow: hidden;
+	}
+}

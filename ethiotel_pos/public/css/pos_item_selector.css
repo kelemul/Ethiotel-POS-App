@@ -1,0 +1,422 @@
+/* ethiotel_pos — item selector card: filter bar, categories, item grid, barcode scan
+   split from ethiotel_pos.css (do not edit order). */
+/* ---------- Item selector (right pane) ---------- */
+.items-selector {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	min-width: 0;
+	width: 100%;
+}
+.items-selector .filter-section {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: 8px;
+	padding: 10px 12px 8px;
+	background: var(--eims-soft);
+	border-bottom: 1px solid #e9ecef;
+	flex-shrink: 0;
+}
+.items-selector .filter-section .filter-head {
+	grid-column: span 12;
+}
+/* One-row filter bar: search box = 75% of card width, then barcode scan
+   icon, then Grid / List toggles — no prev/next navigation */
+.items-selector .filter-section .search-field {
+	grid-column: span 12;
+	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.items-selector .search-field > .frappe-control {
+	flex: 100%;
+	min-width: 300px;
+	max-width: 100%;
+
+}
+.items-selector .et-selector-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1 1 auto;
+	justify-content: flex-end;
+	min-width: 0;
+}
+.items-selector .et-selector-controls .barcode-scan-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border-radius: 4px;
+	border: 1px solid var(--eims-green);
+	background: #fff;
+	color: var(--eims-green2);
+	cursor: pointer;
+	flex-shrink: 0;
+	line-height: 0;
+	transition: background .12s ease, color .12s ease;
+}
+.items-selector .et-selector-controls .barcode-scan-btn:hover {
+	background: var(--eims-green);
+	color: #fff;
+}
+.items-selector .et-selector-controls .et-view-grid,
+.items-selector .et-selector-controls .et-view-list {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+.items-selector .et-selector-controls .et-view-grid.active,
+.items-selector .et-selector-controls .et-view-list.active {
+	background: var(--et-bar-grad) !important;
+	border-color: var(--eims-green) !important;
+	color: #fff !important;
+}
+
+/* Minimized selector: compact filter section so details panel can show */
+.items-selector.et-selector-minimized .filter-section {
+	grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+	padding: 8px 10px 6px;
+}
+.items-selector.et-selector-minimized .filter-section .search-field,
+.items-selector.et-selector-minimized .filter-section .filter-head {
+	grid-column: span 1 !important;
+	margin: 4px 0;
+}
+.items-container.et-minimized-grid {
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+	padding: 6px 10px 10px;
+}
+.items-selector .label {
+	color: var(--eims-green);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	font-size: 12px;
+}
+.items-selector .search-field input {
+	border: 1px solid #ced4da;
+	border-radius: 4px;
+}
+.items-selector .search-field input:focus {
+	border-color: var(--eims-green);
+	box-shadow: 0 0 0 .15rem rgba(26, 122, 76, .25);
+}
+/* Item grid container — CRITICAL: must be grid with columns, otherwise
+   children render as stacked rows (only horizontal dividers visible) */
+.items-container {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+	gap: 8px;
+	padding: 8px 12px 12px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	align-content: start;
+}
+.items-container.list-view {
+	grid-template-columns: 1fr !important;
+	gap: 0;
+}
+
+/* =========================================================================
+   HORIZONTAL SCROLLABLE CATEGORY BAR — VERY TOP of item-selector container
+   ========================================================================= */
+.et-categories-topmost {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 12px 8px;
+	background: linear-gradient(180deg, var(--eims-green), var(--eims-green2));
+	border-bottom: 2px solid var(--eims-lime);
+	flex-shrink: 0;
+	width: 100%;
+	min-height: 54px;
+	position: relative;
+	z-index: 2;
+}
+
+.et-cat-scroll {
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(255,255,255,.15);
+	border: 1px solid rgba(255,255,255,.28);
+	border-radius: 50%;
+	color: #fff;
+	cursor: pointer;
+	z-index: 2;
+	transition: background .12s ease, color .12s ease, border-color .12s ease, transform .12s ease;
+	user-select: none;
+}
+.et-cat-scroll:hover:not(:disabled) {
+	background: #fff;
+	border-color: #fff;
+	color: var(--eims-green2);
+	transform: scale(1.06);
+}
+.et-cat-scroll:disabled {
+	opacity: .35;
+	cursor: not-allowed;
+}
+
+.categories-boxes {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap !important;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 4px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-behavior: smooth;
+	-webkit-overflow-scrolling: touch;
+	flex: 1 1 auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255,255,255,.55) transparent;
+	min-height: 38px;
+}
+.categories-boxes::-webkit-scrollbar {
+	height: 4px;
+}
+.categories-boxes::-webkit-scrollbar-track {
+	background: rgba(255,255,255,.05);
+	border-radius: 4px;
+}
+.categories-boxes::-webkit-scrollbar-thumb {
+	background: rgba(255,255,255,.6);
+	border-radius: 4px;
+}
+.categories-boxes::-webkit-scrollbar-thumb:hover {
+	background: #fff;
+}
+
+/* Remove old pagination nav from previous version (safety) */
+.categories-boxes .et-categories-nav {
+	display: none !important;
+}
+.categories-boxes .et-categories-row {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap !important;
+	gap: 6px;
+}
+
+.et-category-btn {
+	flex-shrink: 0;
+	padding: 6px 14px;
+	font-size: 12.5px;
+	font-weight: 600;
+	border: 1px solid rgba(255,255,255,.3);
+	background: rgba(255,255,255,.14);
+	color: #fff;
+	border-radius: 999px;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: all .15s ease;
+}
+.et-category-btn:hover {
+	background: rgba(255,255,255,.28);
+	border-color: #fff;
+	color: #fff;
+	transform: translateY(-1px);
+}
+.et-category-btn.active {
+	background: #fff !important;
+	color: var(--eims-green2) !important;
+	border-color: #fff !important;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, .25) !important;
+	transform: translateY(-1px);
+	font-weight: 700;
+}
+.et-category-btn.et-category-loading {
+	animation: et-pulse 1.6s infinite;
+}
+
+/* Item grid — responsive columns via CSS, NOT inline JS styles */
+.items-container {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+	gap: 8px;
+}
+.items-container.list-view {
+	grid-template-columns: none !important;
+	display: block !important;
+	padding: 0 !important;
+}
+
+.items-container.list-view .item-wrapper {
+	display: none !important;
+}
+
+.item-list-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0;
+	font-size: 0.92rem;
+}
+.item-list-table thead {
+	background: var(--eims-soft);
+}
+.item-list-table th,
+.item-list-table td {
+	padding: 12px 10px;
+	border-bottom: 1px solid #e9ecef;
+	text-align: left;
+	vertical-align: middle;
+}
+.item-list-table th {
+	color: var(--et-ink);
+	font-weight: 700;
+}
+.item-table-row:hover {
+	background: rgba(42, 124, 73, .05);
+}
+.item-table-name {
+	font-weight: 600;
+}
+.item-table-code {
+	font-size: 0.8rem;
+}
+.item-list-table td .indicator-pill {
+	margin: 0;
+}
+
+/* Medium screens — slightly larger cards */
+@media (min-width: 1400px) {
+	.items-container {
+		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+	}
+}
+
+.item-wrapper {
+	border: 1px solid #dee2e6 !important;
+	border-radius: 6px !important;
+	background: #fff;
+	transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+	cursor: pointer;
+	min-width: 0;
+	overflow: hidden;
+}
+.item-wrapper:hover {
+	border-color: var(--eims-green) !important;
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .18) !important;
+}
+.item-wrapper.selected {
+	border: 2px solid var(--eims-green) !important;
+	box-shadow: inset 0 0 0 1px var(--eims-green), 0 4px 12px rgba(26, 122, 76, .15) !important;
+}
+.item-wrapper .quantity-pill {
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+}
+.item-name { font-weight: 600; color: var(--et-ink, #1A1F24); }
+.item-rate { color: var(--eims-green); font-weight: 600; }
+.item-display.abbr {
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+	font-weight: 700;
+	border-radius: 6px 6px 0 0;
+}
+
+/* ---------- Pagination / view / size controls ---------- */
+.et-selector-controls {
+	flex-wrap: wrap;
+}
+.et-selector-controls button.disabled,
+.et-selector-controls button:disabled {
+	opacity: .5;
+	cursor: not-allowed;
+}
+.et-selector-controls .et-page-info {
+	font-size: 12px;
+	color: var(--eims-green2);
+	font-weight: 600;
+	margin-left: 4px;
+}
+/* ---------- Barcode camera scanner ---------- */
+.items-selector .filter-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 6px;
+	flex-wrap: wrap;
+}
+.barcode-scan-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+	border: none !important;
+	border-radius: 6px !important;
+	font-weight: 600 !important;
+	font-size: 12px !important;
+	padding: 4px 12px !important;
+	transition: transform .12s ease, box-shadow .12s ease;
+	cursor: pointer;
+}
+.barcode-scan-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .35) !important;
+}
+.barcode-scan-btn svg { width: 15px; height: 15px; }
+.et-scanner-area {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 0;
+}
+.et-scanner-video {
+	width: 100%;
+	max-width: 460px;
+	height: auto;
+	max-height: 320px;
+	background: #111;
+	border-radius: 8px;
+	object-fit: cover;
+}
+.et-scanner-status {
+	font-size: 13px;
+	color: var(--eims-green2);
+	font-weight: 600;
+}
+.et-scanner-history {
+	width: 100%;
+	max-width: 460px;
+	text-align: left;
+}
+.et-scanner-history-title {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--eims-green2);
+	margin-bottom: 4px;
+}
+.et-scanner-history-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	max-height: 120px;
+	overflow-y: auto;
+}
+.et-scanner-history-item {
+	font-size: 12px;
+	padding: 4px 8px;
+	background: var(--eims-soft, #eef6f0);
+	border-radius: 4px;
+	color: var(--et-ink, #1A1F24);
+}
+.et-scanner-area:empty {
+	display: none;
+}

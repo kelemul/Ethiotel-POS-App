@@ -44,19 +44,22 @@ erpnext.PointOfSale.ItemCart = class {
 	}
 
 	init_cart_components() {
+		
 		this.$component.append(
 			`<div class="cart-container">
 				<div class="abs-cart-container">
 					<div class="cart-label">${__("Item Cart")}</div>
-					<div class="cart-header">
-						<div class="name-header">${__("Item")}</div>
-						<div class="qty-header">${__("Quantity")}</div>
-						<div class="unit-header">${__("Unit")}</div>
-						<div class="vat-header">${__("VAT %")}</div>
-						<div class="total-header">${__("Total")}</div>
-						<div class="action-header" title="${__("Remove")}">✕</div>
+					<div class="cart-items-section">
+						<div class="cart-header">
+							<div class="name-header">${__("Item")}</div>
+							<div class="qty-header">${__("Quantity")}</div>
+							<div class="unit-header">${__("Unit")}</div>
+							<div class="vat-header">${__("VAT %")}</div>
+							<div class="total-header">${__("Total")}</div>
+							<div class="action-header" title="${__("Remove")}">✕</div>
+						</div>
+						<div class="cart-rows"></div>
 					</div>
-					<div class="cart-items-section"></div>
 					<div class="cart-totals-section"></div>
 					<div class="numpad-section"></div>
 				</div>
@@ -198,8 +201,12 @@ erpnext.PointOfSale.ItemCart = class {
 	}
 
 	make_cart_items_section() {
+		// Header now lives inside .cart-items-section (see init_cart_components),
+		// $cart_items_wrapper is the dedicated rows container (.cart-rows) so
+		// row-append / row-click logic below is completely unaffected by the
+		// header living alongside it.
 		this.$cart_header = this.$component.find(".cart-header");
-		this.$cart_items_wrapper = this.$component.find(".cart-items-section");
+		this.$cart_items_wrapper = this.$component.find(".cart-rows");
 
 		this.make_no_items_placeholder();
 	}
@@ -810,7 +817,7 @@ erpnext.PointOfSale.ItemCart = class {
 		const $item = this.get_cart_item(item);
 
 		if (remove_item) {
-			$item && $item.next().remove() && $item.remove();
+			$item && $item.remove();
 		} else {
 			const item_row = this.get_item_from_frm(item);
 			this.render_cart_item(item_row, $item);
@@ -828,15 +835,14 @@ erpnext.PointOfSale.ItemCart = class {
 		const me = this;
 
 		if (!$item_to_update.length) {
-			// Seperator divs are removed — grid rows have their own border-bottom.
+			// Rows are appended into .cart-rows — grid rows have their own
+			// border-bottom, no separator divs needed.
 			this.$cart_items_wrapper.append(
 				`<div class="cart-item-wrapper" data-row-name="${escape(item_data.name)}"></div>`
 			);
 			$item_to_update = this.get_cart_item(item_data);
 		}
 
-		const descriptionHtml = get_description_html();
-		const imgHtml = get_item_image_html();
 		// VAT% for the row: estimate using first tax table's rate applied to
 		// this row's tax_rate object OR use row's net-to-grand-total ratio.
 		const vatPct = get_vat_pct();
@@ -846,12 +852,10 @@ erpnext.PointOfSale.ItemCart = class {
 
 		$item_to_update.html(`
 			<div class="item-name-desc">
-				${imgHtml}
 				<div class="item-name-desc-text">
 					<div class="item-name" title="${frappe.utils.escape_html(item_data.item_name || '')}">
 						${frappe.utils.escape_html(item_data.item_name)}
 					</div>
-					${descriptionHtml}
 				</div>
 			</div>
 
@@ -889,14 +893,6 @@ erpnext.PointOfSale.ItemCart = class {
 			</div>
 		`);
 
-		// The old dynamic rate-header width logic is obsolete with the grid
-		// layout (each column has an explicit proportional width defined in
-		// CSS), but leave a no-op here for safety.
-		function set_dynamic_rate_header_width() {
-			return;
-		}
-		set_dynamic_rate_header_width();
-
 		function get_vat_pct() {
 			// Strategy 1: item_data has item_tax_rate (Tax Charges column)
 			const itr = item_data.item_tax_rate;
@@ -927,37 +923,6 @@ erpnext.PointOfSale.ItemCart = class {
 				}
 			}
 			return "—";
-		}
-
-		function get_description_html() {
-			if (item_data.description) {
-				let desc = item_data.description;
-				if (desc.indexOf("<div>") != -1) {
-					try {
-						desc = $(desc).text();
-					} catch (error) {
-						desc = desc
-							.replace(/<div>/g, " ")
-							.replace(/<\/div>/g, " ")
-							.replace(/ +/g, " ");
-					}
-				}
-				desc = frappe.ellipsis(desc, 50);
-				return `<div class="item-desc">${frappe.utils.escape_html(desc)}</div>`;
-			}
-			return ``;
-		}
-
-		function get_item_image_html() {
-			const { image, item_name } = item_data;
-			if (!me.hide_images && image) {
-				return `
-					<div class="item-image">
-						<img onerror="cur_pos.cart.handle_broken_image(this)"
-							src="${frappe.utils.escape_html(image)}" alt="${frappe.get_abbr(item_name)}">
-					</div>`;
-			}
-			return `<div class="item-image item-abbr">${frappe.get_abbr(item_name)}</div>`;
 		}
 	}
 
@@ -1017,8 +982,8 @@ erpnext.PointOfSale.ItemCart = class {
 	update_empty_cart_section(no_of_cart_items) {
 		const $no_item_element = this.$cart_items_wrapper.find(".no-item-wrapper");
 
-		// ----— Cart header is CSS `display: grid` for the 6-column layout — NEVER force it
-		// to display:flex; flex column it the entire all column layout breaks. Show/hide only.
+		// Cart header is CSS `display: grid` for the 6-column layout — NEVER
+		// force it to display:flex; the entire column layout breaks. Show/hide only.
 		if (no_of_cart_items > 0) {
 			if ($no_item_element.length) {
 				$no_item_element.remove();

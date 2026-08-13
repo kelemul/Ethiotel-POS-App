@@ -1,0 +1,693 @@
+/* ethiotel_pos — responsiveness, layout lock, item-details modal overlay, mobile cart safety net
+   split from ethiotel_pos.css (do not edit order). */
+/* =========================================================================
+   RESPONSIVE BREAKPOINTS — fully adaptive POS
+   ========================================================================= */
+
+/* Large screens — 2 column spread (cart left slightly wider, items right) */
+@media (min-width: 1400px) {
+	.point-of-sale-app {
+		grid-template-columns: minmax(580px, 1.35fr) minmax(0, 1fr) !important;
+	}
+}
+
+/* Medium screens — 2-column (slightly narrower cart) */
+@media (max-width: 1399px) and (min-width: 1024px) {
+	.point-of-sale-app {
+		grid-template-columns: minmax(520px, 1.2fr) minmax(0, 1fr) !important;
+	}
+}
+
+/* Tablet landscape / small laptop — 2 columns still, cart a bit narrower */
+@media (max-width: 1023px) and (min-width: 768px) {
+	body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+		padding: 8px !important;
+	}
+	.point-of-sale-app {
+		display: grid !important;
+		grid-template-columns: minmax(440px, 1.05fr) minmax(0, 1fr) !important;
+		grid-template-rows: minmax(0, 1fr) !important;
+		gap: 10px;
+	}
+
+	/* Compact cart columns on tablet */
+	.cart-header,
+	.item-cart-items .cart-item-wrapper,
+	.cart-items-section .cart-item-wrapper {
+		grid-template-columns: minmax(0, 1fr) 80px 68px 46px 78px 64px !important;
+		gap: 4px;
+	}
+
+	/* CART remains LEFT column, everything else stays RIGHT */
+	.point-of-sale-app > .customer-cart-container {
+		grid-column: 1 / 2 !important;
+		grid-row: 1 / -1 !important;
+	}
+	.point-of-sale-app > :not(.customer-cart-container) {
+		grid-column: 2 / 3 !important;
+	}
+
+	/* Adjust item grid for tablet — fewer, wider cards */
+	.items-container {
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+		gap: 6px;
+	}
+
+	/* Filter section — stack search on tablet */
+	.items-selector .filter-section .search-field {
+		grid-column: span 12 !important;
+	}
+
+	.barcode-scan-btn .btn-text { display: none; }
+	.barcode-scan-btn { padding: 4px 8px !important; }
+
+	.et-left-menu { display: none; }
+	.et-pos-layout { gap: 6px; }
+}
+
+/* Tablet portrait / large phone — stack vertically with scroll (cart first to quickly see totals) */
+@media (max-width: 767px) {
+	body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+		padding: 6px !important;
+	}
+
+	.point-of-sale-app {
+		display: flex !important;
+		flex-direction: column !important;
+		grid-template-columns: none !important;
+		grid-template-rows: none !important;
+		grid-template-areas: none !important;
+		min-height: auto !important;
+		height: auto !important;
+		gap: 8px !important;
+	}
+
+	/* Cancel the 2-column grid placement, let flex stack them in DOM order.
+	   Cart -> selector -> details/payment/summary  */
+	.point-of-sale-app > .customer-cart-container,
+	.point-of-sale-app > :not(.customer-cart-container) {
+		grid-column: unset !important;
+		grid-row: unset !important;
+		min-height: auto !important;
+		max-height: none !important;
+		height: auto !important;
+		order: unset !important;
+	}
+
+	/* Put cart visually FIRST and guarantee it is actually rendered —
+	   nothing on the page should be able to hide/collapse it on mobile. */
+	.point-of-sale-app > .customer-cart-container {
+		order: 1 !important;
+		display: flex !important;
+		flex-direction: column !important;
+		visibility: visible !important;
+		opacity: 1 !important;
+		width: 100% !important;
+	}
+	/* Items selector SECOND (so users scroll down to browse after viewing cart) */
+	.point-of-sale-app > .items-selector { order: 2 !important; }
+	/* Details, payment, summary last */
+	.point-of-sale-app > .item-details-container,
+	.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+		order: 3 !important;
+	}
+
+	/* Cart must be fully visible on mobile — height:auto so it never collapses,
+	   items list capped & scrollable */
+	.point-of-sale-app > .customer-cart-container,
+	.point-of-sale-app > .customer-cart-container .abs-cart-container {
+		height: auto !important;
+		min-height: 0 !important;
+		max-height: none !important;
+		width: 100% !important;
+	}
+
+	/* --- CART COLUMNS ON MOBILE ---------------------------------------
+	   Previously the header/rows relied on a fixed min-width (460px) with
+	   independent horizontal scrolling on the rows only. Because the
+	   header had no scroll container of its own, it drifted out of sync
+	   with the rows as soon as the user scrolled — that's what caused
+	   "Item / Quantity / Unit / VAT / Total" to visually line up with the
+	   wrong values. Fix: no horizontal scrolling at all on mobile — shrink
+	   the column widths so header and rows always share the exact same
+	   layout and can never desync. */
+	.point-of-sale-app > .customer-cart-container .cart-items-section {
+		flex: 0 0 auto;
+		max-height: 42vh;
+		overflow-y: auto;
+		overflow-x: hidden;
+	}
+	.cart-header,
+	.item-cart-items .cart-item-wrapper,
+	.cart-items-section .cart-item-wrapper {
+		grid-template-columns: minmax(0, 1fr) 64px 52px 40px 64px 48px !important;
+		gap: 4px !important;
+	}
+	.cart-header {
+		font-size: 9.5px;
+		padding: 6px 8px;
+	}
+	.cart-item-wrapper {
+		padding: 6px 8px;
+	}
+	/* Shrink the qty stepper and its label so it fits the narrower column */
+	.cart-qty-btn {
+		width: 18px;
+		height: 18px;
+		min-width: 18px;
+	}
+	.cart-qty-val {
+		min-width: 24px;
+		font-size: 11px;
+		gap: 1px;
+	}
+	.cart-qty-uom { display: none; }
+	.cart-unit, .cart-vat, .cart-total {
+		font-size: 11px;
+	}
+	.cart-eye-btn, .cart-delete-btn {
+		width: 22px;
+		height: 22px;
+	}
+	.item-name {
+		font-size: 12.5px;
+	}
+	.item-desc { display: none; }
+
+	/* Filter section — stack vertically on mobile */
+	.items-selector .filter-section {
+		grid-template-columns: 1fr !important;
+	}
+	.items-selector .filter-section .filter-head,
+	.items-selector .filter-section .search-field {
+		grid-column: span 1 !important;
+		margin: 4px 0 !important;
+	}
+
+	/* Item grid on mobile — 2-3 columns depending on width */
+	.items-container {
+		grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+		gap: 6px;
+		padding: 6px;
+	}
+
+	/* Horizontal categories: larger tap targets for touch */
+	.et-cat-scroll {
+		width: 40px;
+		height: 40px;
+		min-width: 40px;
+	}
+	.et-category-btn {
+		padding: 8px 16px;
+		font-size: 13px;
+	}
+
+	/* Item grid — fewer columns on mobile */
+	.items-container {
+		padding: 6px;
+	}
+
+	/* Cart section header — compact */
+	.cart-label {
+		font-size: 11px;
+		padding: 10px 12px 0;
+	}
+
+	/* Numpad — smaller keys, compact totals */
+	.numpad-btn {
+		min-height: 44px !important;
+		font-size: 15px !important;
+	}
+	.numpad-totals > span {
+		font-size: 11px;
+		padding: 5px 6px;
+		min-width: 72px;
+	}
+	.numpad-totals {
+		gap: 4px;
+	}
+
+	/* Filter head — wrap on small screens */
+	.items-selector .filter-head {
+		flex-direction: row;
+	}
+	.items-selector .label {
+		font-size: 11px;
+	}
+
+	/* Payment section */
+	.payment-section { padding: 10px; }
+
+	.barcode-scan-btn {
+		padding: 4px 8px !important;
+		font-size: 11px !important;
+	}
+
+	.et-left-menu { display: none; }
+	.et-pos-layout { gap: 6px; }
+
+	/* Print buttons — stack on very small screens */
+	.cart-print-btns {
+		flex-direction: column;
+		gap: 6px;
+	}
+	.cart-print-btn {
+		padding: 10px 6px;
+		font-size: 13px;
+	}
+}
+
+/* Extra small phones (< 480px) */
+@media (max-width: 479px) {
+	body.ethiopos-fullscreen #page-ethiotel-pos > .page-container {
+		padding: 4px !important;
+	}
+
+	.et-category-btn {
+		padding: 7px 14px;
+		font-size: 12.5px;
+	}
+	.categories-boxes {
+		gap: 4px;
+	}
+	.et-cat-scroll {
+		width: 36px;
+		height: 36px;
+		min-width: 36px;
+	}
+
+	.et-categories-topmost {
+		padding: 8px 8px 6px;
+		min-height: 48px;
+	}
+
+	.items-selector .filter-section {
+		padding: 8px 8px 6px;
+	}
+	.items-container {
+		padding: 6px 6px 10px;
+		/* 2 columns on very small phones */
+		grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)) !important;
+		gap: 5px;
+	}
+
+	/* Controls wrap on very small screens */
+	.et-selector-controls {
+		gap: 5px !important;
+	}
+	.et-selector-controls .et-page-info {
+		width: 100%;
+		order: -1;
+		margin-left: 0 !important;
+	}
+
+	.grand-total-container {
+		padding: 10px 12px !important;
+	}
+	.checkout-btn {
+		padding: 10px 12px !important;
+		font-size: 14px !important;
+	}
+
+	/* Cart columns squeeze a little further on very small phones */
+	.cart-header,
+	.item-cart-items .cart-item-wrapper,
+	.cart-items-section .cart-item-wrapper {
+		grid-template-columns: minmax(0, 1fr) 58px 46px 0 58px 40px !important;
+		gap: 3px !important;
+	}
+	.cart-header .vat-header,
+	.cart-item-wrapper > .cart-vat {
+		display: none !important;
+	}
+}
+
+/* Touch-friendly hover/interactions for mobile — disable hover, use active states */
+@media (hover: none) and (pointer: coarse) {
+	.item-wrapper:hover,
+	.cart-item-wrapper:hover,
+	.mode-of-payment:hover,
+	.numpad-btn:hover,
+	.et-category-btn:hover,
+	.barcode-scan-btn:hover,
+	.checkout-btn:hover {
+		transform: none !important;
+	}
+	.item-wrapper:active {
+		background: #f0f8f4;
+		transform: scale(0.98);
+	}
+	.numpad-btn:active {
+		background: var(--et-bar-grad) !important;
+		color: #fff !important;
+		transform: scale(0.96);
+	}
+	.et-category-btn:active {
+		transform: scale(0.97);
+	}
+}
+
+/* =========================================================================
+   POS LAYOUT LOCK — overrides the stock ERPNext POS CSS that forces every
+   section to min-height:45rem / height:calc(100vh - 200px) and fixed
+   10-column grid spans. Without this the item cards render at the wrong
+   position/width and content clips. These rules win the cascade.
+   ========================================================================= */
+.point-of-sale-app {
+	display: grid !important;
+	grid-template-columns: minmax(480px, 1.1fr) minmax(0, 1fr) !important;
+	grid-template-rows: minmax(0, 1fr) !important;
+	gap: 12px !important;
+	align-items: stretch;
+	width: 100% !important;
+	max-width: 100% !important;
+	min-width: 0;
+	height: 100% !important;
+}
+
+/* Checkout state: two cards — cart | payment (item list hidden, item details is a modal) */
+.point-of-sale-app.et-checkout-mode {
+	grid-template-columns: minmax(420px, 1.1fr) minmax(0, 1.3fr) !important;
+}
+
+.point-of-sale-app.et-checkout-mode > .customer-cart-container {
+	grid-column: 1 / 2 !important;
+}
+.point-of-sale-app.et-checkout-mode > .payment-container,
+.point-of-sale-app.et-checkout-mode > section:not(.items-selector):not(.customer-cart-container) {
+	grid-column: 2 / 3 !important;
+}
+.point-of-sale-app.et-checkout-mode > .items-selector {
+	display: none !important;
+}
+
+.point-of-sale-app section {
+	min-height: 0 !important;
+	height: auto !important;
+	max-height: none !important;
+	overflow: hidden;
+}
+
+.point-of-sale-app > .customer-cart-container {
+	grid-column: 1 / 2 !important;
+	grid-row: 1 / -1 !important;
+	min-width: 0;
+	height: 100% !important;
+	display: flex !important;
+	flex-direction: column;
+}
+
+.point-of-sale-app > .items-selector {
+	grid-column: 2 / 3 !important;
+	display: flex !important;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	width: 100%;
+}
+
+.point-of-sale-app > .item-details-container,
+.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+	grid-column: 2 / 3 !important;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* Item cards — fluid auto-fill grid, never a fixed 4-column row */
+.point-of-sale-app > .items-selector > .items-container,
+.items-container {
+	display: grid !important;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+	grid-auto-rows: auto;
+	gap: 8px;
+	align-content: start;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	padding: 8px 12px 12px;
+}
+.point-of-sale-app > .items-selector > .items-container.list-view {
+	display: block !important;
+	grid-template-columns: none !important;
+	gap: 0;
+	padding: 0;
+	overflow-y: auto;
+}
+.items-container.list-view {
+	grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+	gap: 0;
+}
+
+/* Item card — contain its content, never overflow the cell */
+.point-of-sale-app > .items-selector > .items-container > .item-wrapper,
+.items-container > .item-wrapper {
+	min-width: 0;
+	width: 100%;
+	height: auto;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.items-container > .item-wrapper .item-img {
+	width: 100%;
+	height: auto;
+	object-fit: cover;
+}
+
+/* Filter section — fluid within the right column */
+.items-selector .filter-section {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: 8px;
+	width: 100%;
+	min-width: 0;
+}
+.items-selector .filter-section .filter-head { grid-column: 1 / -1; }
+.items-selector .filter-section .search-field { grid-column: 1 / -1; min-width: 0; }
+
+/* =========================================================================
+   RESPONSIVE — full-window, fluid POS
+   ========================================================================= */
+@media (max-width: 1023px) and (min-width: 768px) {
+	.point-of-sale-app {
+		grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr) !important;
+	}
+	.point-of-sale-app.et-checkout-mode {
+		grid-template-columns: minmax(260px, 1fr) minmax(0, 1.4fr) !important;
+	}
+	.items-container,
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+	}
+}
+
+@media (max-width: 767px) {
+	.items-container.list-view {
+		grid-template-columns: none !important;
+		display: block !important;
+		padding: 0 !important;
+	}
+	.items-container.list-view .item-wrapper {
+		display: none !important;
+	}
+	.point-of-sale-app {
+		display: flex !important;
+		flex-direction: column !important;
+		height: auto !important;
+		min-height: 0 !important;
+		gap: 8px !important;
+	}
+	.point-of-sale-app > .customer-cart-container,
+	.point-of-sale-app > .items-selector,
+	.point-of-sale-app > .item-details-container,
+	.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+		grid-column: auto !important;
+		grid-row: auto !important;
+		width: 100% !important;
+		height: auto !important;
+		min-height: 0 !important;
+	}
+	/* Re-assert cart-first ordering and forced visibility here too, since
+	   this block runs after the earlier mobile block in the cascade and
+	   is the last word on layout for this breakpoint. */
+	.point-of-sale-app > .customer-cart-container {
+		order: 1 !important;
+		display: flex !important;
+		flex-direction: column !important;
+		visibility: visible !important;
+		opacity: 1 !important;
+	}
+	.point-of-sale-app > .items-selector { order: 2 !important; }
+	.point-of-sale-app > .item-details-container,
+	.point-of-sale-app > section:not(.items-selector):not(.customer-cart-container) {
+		order: 3 !important;
+	}
+	.items-selector .filter-section .search-field {
+		grid-column: span 12 !important;
+	}
+	.items-container,
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+	}
+}
+
+@media (max-width: 479px) {
+	.items-selector .filter-section .search-field {
+		grid-column: 1 / -1 !important;
+	}
+	.items-container,
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)) !important;
+	}
+}
+
+/* Hide the ERPNext top navbar + sidebar + page header when the POS page is open */
+body[data-route="ethiotel-pos"] .navbar,
+body[data-route="ethiotel-pos"] .navbar-home,
+body[data-route="ethiotel-pos"] header.navbar,
+body[data-route="ethiotel-pos"] .navbar-container,
+body[data-route="ethiotel-pos"] .page-head,
+body[data-route="ethiotel-pos"] .layout-side-section,
+body[data-route="ethiotel-pos"] .sidebar,
+body[data-route="ethiotel-pos"] .sidebar-container {
+	display: none !important;
+}
+
+body[data-route="ethiotel-pos"] .page-container,
+body[data-route="ethiotel-pos"] .layout-main-section-wrapper,
+body[data-route="ethiotel-pos"] .layout-main-section {
+	max-width: 100% !important;
+	width: 100% !important;
+	padding: 0 !important;
+	margin: 0 !important;
+}
+body[data-route="ethiotel-pos"] #page-ethiotel-pos {
+	padding: 12px !important;
+	width: 100% !important;
+	max-width: 100% !important;
+}
+body[data-route="ethiotel-pos"] .layout-main-section {
+	min-height: calc(100vh - 24px) !important;
+	height: auto;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+/* Height chain: layout-main-section -> et-pos-layout -> et-main ->
+   et-view-container -> et-view-pos -> point-of-sale-app must all resolve
+   so the item grid + cart actually fill the window instead of collapsing. */
+body[data-route="ethiotel-pos"] .layout-main-section,
+body[data-route="ethiotel-pos"] .layout-main-section-wrapper {
+	display: flex;
+	flex-direction: column;
+}
+body[data-route="ethiotel-pos"] .et-pos-layout {
+	height: 100% !important;
+	flex: 1 1 auto;
+}
+body[data-route="ethiotel-pos"] .et-main,
+body[data-route="ethiotel-pos"] .et-view-container,
+body[data-route="ethiotel-pos"] .et-view-pos {
+	flex: 1 1 auto;
+	height: 100%;
+	min-height: 0;
+}
+body[data-route="ethiotel-pos"] .point-of-sale-app {
+	min-height: 0;
+	height: 100% !important;
+}
+
+/* ---------- Item details as modal overlay ---------- */
+.point-of-sale-app > .item-details-container {
+	position: fixed !important;
+	inset: 0 !important;
+	z-index: 2000;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 100% !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	height: auto !important;
+	overflow: hidden !important;
+	padding: 20px;
+	border: none !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	background: rgba(13, 22, 18, .22) !important;
+	backdrop-filter: blur(2px);
+}
+.point-of-sale-app > .item-details-container .et-id-backdrop {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	cursor: default;
+}
+.point-of-sale-app > .item-details-container .et-id-modal-card {
+	position: relative;
+	z-index: 1;
+	width: min(580px, 100%);
+	max-height: 92vh;
+	overflow-y: auto;
+	background: #fff;
+	border-radius: 12px;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+	padding: 18px 22px;
+}
+.point-of-sale-app > .item-details-container .close-btn {
+	cursor: pointer;
+}
+
+/* ---------- Filter bar responsive ---------- */
+@media (max-width: 767px) {
+	.items-selector .filter-section .search-field {
+		flex-wrap: wrap;
+	}
+	.items-selector .search-field > .frappe-control {
+		flex-basis: 100%;
+	}
+	.items-selector .et-selector-controls {
+		justify-content: flex-start;
+	}
+}
+
+/* =========================================================================
+   MOBILE CART VISIBILITY — final safety net (highest priority in the
+   cascade: last rule block in the file, all !important). Guarantees the
+   Item Cart is always rendered, first in the stack, and never collapsed
+   to 0 height/width, no matter what earlier rules in this file or in
+   erp_pos.css do at this breakpoint.
+   ========================================================================= */
+@media (max-width: 767px) {
+	.point-of-sale-app > .customer-cart-container {
+		display: flex !important;
+		flex-direction: column !important;
+		visibility: visible !important;
+		opacity: 1 !important;
+		order: 1 !important;
+		width: 100% !important;
+		height: auto !important;
+		min-height: 0 !important;
+		max-height: none !important;
+	}
+	.point-of-sale-app > .customer-cart-container .abs-cart-container,
+	.point-of-sale-app > .customer-cart-container .cart-container {
+		display: flex !important;
+		flex-direction: column !important;
+		width: 100% !important;
+		height: auto !important;
+	}
+	.point-of-sale-app > .customer-cart-container .cart-label,
+	.point-of-sale-app > .customer-cart-container .cart-header,
+	.point-of-sale-app > .customer-cart-container .cart-items-section,
+	.point-of-sale-app > .customer-cart-container .cart-totals-section {
+		display: block;
+		visibility: visible !important;
+		opacity: 1 !important;
+	}
+	.point-of-sale-app > .customer-cart-container .cart-header,
+	.point-of-sale-app > .customer-cart-container .cart-item-wrapper {
+		display: grid !important;
+	}
+}

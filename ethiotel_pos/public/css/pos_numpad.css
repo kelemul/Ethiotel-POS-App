@@ -1,0 +1,52 @@
+/* ethiotel_pos — numpad
+   split from ethiotel_pos.css (do not edit order). */
+/* ---------- Numpad ---------- */
+.numpad-section { flex-shrink: 0; }
+.numpad-container { gap: 6px; }
+.numpad-btn {
+	border-radius: 6px !important;
+	border: 1px solid #ced4da !important;
+	background: #fff !important;
+	font-weight: 600 !important;
+	transition: transform .1s ease, background .12s ease;
+	cursor: pointer;
+	min-height: 42px !important;
+}
+.numpad-btn:hover {
+	background: #f0f8f4 !important;
+	border-color: var(--eims-green) !important;
+	transform: scale(1.03);
+}
+.numpad-btn.highlighted-numpad-btn {
+	background: var(--et-bar-grad) !important;
+	color: #fff !important;
+	border-color: var(--eims-green) !important;
+}
+.numpad-btn.remove-btn {
+	background: #fef2f2 !important;
+	color: var(--eims-danger) !important;
+	border-color: #fecaca !important;
+}
+.numpad-btn.remove-btn:hover {
+	background: var(--eims-danger) !important;
+	color: #fff !important;
+}
+.numpad-totals {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 6px 4px 10px;
+	font-size: 12px;
+}
+.numpad-totals > span {
+	flex: 1 1 0;
+	min-width: 90px;
+	background: var(--eims-soft);
+	border-radius: 6px;
+	padding: 6px 8px;
+	font-weight: 600;
+	color: var(--eims-green2);
+}
+.numpad-totals span span {
+	color: #1a1f24;
+}

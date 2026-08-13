@@ -1,0 +1,25 @@
+/* ethiotel_pos — payment card
+   split from ethiotel_pos.css (do not edit order). */
+/* ---------- Payment section ---------- */
+.payment-section { padding: 14px; }
+.payment-toolbar { margin-bottom: 10px; }
+.payment-button {
+	border-radius: 4px !important;
+	transition: transform .12s ease;
+	cursor: pointer;
+}
+.payment-button:hover { transform: translateY(-1px); }
+.payment-button.selected {
+	background: var(--et-bar-grad) !important;
+	border-color: var(--eims-green) !important;
+	color: #fff !important;
+}
+.mode-of-payment {
+	border: 1px solid #dee2e6 !important;
+	border-radius: 6px;
+	transition: box-shadow .12s ease;
+	cursor: pointer;
+}
+.mode-of-payment:hover { box-shadow: 0 3px 10px rgba(26, 122, 76, .15) !important; }
+.mode-of-payment.selected { border: 2px solid var(--eims-green) !important; }
+

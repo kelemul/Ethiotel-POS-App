@@ -194,16 +194,8 @@ erpnext.PointOfSale.Controller = class {
 		this.show_view("pos");
 	}
 
-	/* =====================================================================
-	   VIEW SWITCHING
-	   The POS selling screen (item selector / cart / payment / item details /
-	   recent order list / order summary) lives inside .et-view-pos and is
-	   built ONCE by prepare_components(). Every other screen (Dashboard,
-	   Held Orders, Order History, Invoices, Report, Close Shift) is its own
-	   sibling container. Switching views only ever toggles `display`, it
-	   never empties .et-view-pos — that was destroying the ItemSelector /
-	   ItemCart / Payment DOM nodes that their JS objects still reference.
-	   ===================================================================== */
+
+	
 	show_view(view_name) {
 		this.wrapper.find(".et-view").css("display", "none");
 		// et-view-pos is display:flex; it hosts .point-of-sale-app which itself uses CSS grid
@@ -420,162 +412,67 @@ erpnext.PointOfSale.Controller = class {
 	show_dashboard() {
 		this.show_view("dashboard");
 		const $view = this.wrapper.find(".et-view-dashboard");
-		$view.html(`<section class="et-dashboard">
-			<div class="et-dash-cards">
-				<div class="et-dash-card et-sales-today">${__("Loading...")}</div>
-				<div class="et-dash-card et-held-count">${__("Loading...")}</div>
-				<div class="et-dash-card et-invoices-count">${__("Loading...")}</div>
-			</div>
-			<div class="et-dash-list">
-				<h4>${__("Recent Invoices")}</h4>
-				<div class="et-dash-invoices"></div>
-			</div>
-		</section>`);
-
-		frappe.call({
-			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_dashboard_metrics",
-			args: { pos_profile: this.pos_profile },
-		}).then((r) => {
-			const m = r.message || {};
-			$view.find(".et-sales-today").html(`${__("Sales Today")}<br><span>${format_currency(m.sales_today || 0)}</span>`);
-			$view.find(".et-held-count").html(`${__("Held Orders")}<br><span>${m.held_orders || 0}</span>`);
-			$view.find(".et-invoices-count").html(`${__("Invoices Today")}<br><span>${m.invoices_today || 0}</span>`);
-		});
-
-		frappe.call({
-			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
-			args: { search_term: "", status: "Paid", limit: 8 },
-		}).then((r) => {
-			const list = (r && r.message) || [];
-			const $invoices = $view.find(".et-dash-invoices");
-			$invoices.html("");
-			if (!list.length) {
-				$invoices.html(`<div class="et-empty-state">${__("No invoices yet")}</div>`);
-				return;
-			}
-			list.forEach((i) => {
-				$invoices.append(
-					`<div class="et-dash-invoice-row">${frappe.utils.escape_html(i.name)} — ${format_currency(i.grand_total, i.currency)}</div>`
-				);
+		if (!this.shift_dashboard || this.shift_dashboard_wrapper !== $view[0]) {
+			this.shift_dashboard = new erpnext.PointOfSale.ShiftDashboard({
+				wrapper: $view,
+				events: { pos_profile: this.pos_profile },
 			});
-		});
+			this.shift_dashboard_wrapper = $view[0];
+		} else {
+			this.shift_dashboard.load_metrics();
+			this.shift_dashboard.load_recent_invoices();
+		}
 	}
 
 	show_held_orders() {
 		this.show_view("held");
 		const $view = this.wrapper.find(".et-view-held");
-		$view.html(`<section class="et-held-orders"><h4>${__("Held Orders")}</h4><div class="et-held-list">${__("Loading...")}</div></section>`);
-
-		frappe.call({
-			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
-			args: { search_term: "", status: "Draft", limit: 50 },
-		}).then((r) => {
-			const rows = r.message || [];
-			const $list = $view.find(".et-held-list");
-			$list.html("");
-
-			if (!rows.length) {
-				$list.html(`<div class="et-empty-state">${__("No held orders")}</div>`);
-				return;
-			}
-
-			rows.forEach((d) => {
-				const $row = $(
-					`<div class="et-held-row">
-						<div class="et-held-left">${frappe.utils.escape_html(d.name)} — ${frappe.utils.escape_html(d.customer || "")} — ${format_currency(d.grand_total, d.currency)}</div>
-						<div class="et-held-actions">
-							<button class="btn btn-default et-resume" data-name="${d.name}">${__("Resume")}</button>
-							<button class="btn btn-danger et-delete-held" data-name="${d.name}">${__("Delete")}</button>
-						</div>
-					</div>`
-				);
-				$list.append($row);
+		if (!this.held_orders || this.held_orders_wrapper !== $view[0]) {
+			this.held_orders = new erpnext.PointOfSale.HeldOrders({
+				wrapper: $view,
+				events: {
+					resume_order: (name) => {
+						frappe.dom.freeze();
+						this.frm = this.get_new_frm(this.frm);
+						frappe.db.get_doc("POS Invoice", name).then((doc) => {
+							frappe.model.sync(doc);
+							this.frm.refresh(doc.name);
+							this.cart.load_invoice();
+							this.go_home();
+							frappe.dom.unfreeze();
+						});
+					},
+					reload: () => this.show_held_orders(),
+				},
 			});
-
-			$list.on("click", ".et-resume", (e) => {
-				const name = $(e.currentTarget).attr("data-name");
-				frappe.dom.freeze();
-				this.frm = this.get_new_frm(this.frm);
-				frappe.db.get_doc("POS Invoice", name).then((doc) => {
-					frappe.model.sync(doc);
-					this.frm.refresh(doc.name);
-					this.cart.load_invoice();
-					this.go_home();
-					frappe.dom.unfreeze();
-				});
-			});
-
-			$list.on("click", ".et-delete-held", (e) => {
-				const name = $(e.currentTarget).attr("data-name");
-				frappe.confirm(__("Delete held order {0}?", [name]), () => {
-					frappe.call({ method: "frappe.client.delete", args: { doctype: "POS Invoice", name } }).then(() => {
-						frappe.show_alert({ message: __("Deleted"), indicator: "green" });
-						this.show_held_orders();
-					});
-				});
-			});
-		});
+			this.held_orders_wrapper = $view[0];
+		} else {
+			this.held_orders.load();
+		}
 	}
 
 	show_order_history() {
 		this.show_view("history");
 		const $view = this.wrapper.find(".et-view-history");
-		$view.html(`<section class="et-order-history"><h4>${__("Order History")}</h4><div class="et-history-list">${__("Loading...")}</div></section>`);
-
-		frappe.call({
-			method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_past_order_list",
-			args: { search_term: "", status: "Paid", limit: 50 },
-		}).then((r) => {
-			const rows = r.message || [];
-			const $list = $view.find(".et-history-list");
-			$list.html("");
-
-			if (!rows.length) {
-				$list.html(`<div class="et-empty-state">${__("No orders yet")}</div>`);
-				return;
-			}
-
-			rows.forEach((d) => {
-				$list.append(
-					`<div class="et-history-row">${d.posting_date || ""} ${d.posting_time || ""} — ${frappe.utils.escape_html(d.name)} — ${frappe.utils.escape_html(d.customer || "")} — ${format_currency(d.grand_total, d.currency)}</div>`
-				);
+		if (!this.order_history || this.order_history_wrapper !== $view[0]) {
+			this.order_history = new erpnext.PointOfSale.OrderHistory({
+				wrapper: $view,
+				events: {},
 			});
-		});
+			this.order_history_wrapper = $view[0];
+		} else {
+			this.order_history.load();
+		}
 	}
 
 	show_invoices_view() {
 		this.show_view("invoices");
 		const $view = this.wrapper.find(".et-view-invoices");
-		$view.html(`<section class="et-invoices-view"><h4>${__("Invoices")}</h4><div class="et-invoices-list">${__("Loading...")}</div></section>`);
-
-		frappe.db
-			.get_list("POS Invoice", {
-				fields: ["name", "grand_total", "currency", "customer", "posting_date"],
-				limit: 50,
-				order_by: "creation desc",
-			})
-			.then((rows) => {
-				const $list = $view.find(".et-invoices-list");
-				$list.html("");
-
-				if (!rows.length) {
-					$list.html(`<div class="et-empty-state">${__("No invoices yet")}</div>`);
-					return;
-				}
-
-				rows.forEach((d) => {
-					const $row = $(
-						`<div class="et-invoice-row">
-							<div class="et-invoice-left">${d.posting_date || ""} — ${frappe.utils.escape_html(d.name)} — ${frappe.utils.escape_html(d.customer || "")} — ${format_currency(d.grand_total, d.currency)}</div>
-							<div class="et-invoice-actions">
-								<button class="btn btn-default et-view-invoice" data-name="${d.name}">${__("View")}</button>
-								<button class="btn btn-default et-print-invoice" data-name="${d.name}">${__("Print")}</button>
-								<button class="btn btn-default et-send-mor-row" data-name="${d.name}">${__("Send to MoR")}</button>
-							</div>
-						</div>`
-					);
-					$row.find(".et-view-invoice").on("click", (e) => {
-						const name = $(e.currentTarget).attr("data-name");
+		if (!this.invoices_view || this.invoices_view_wrapper !== $view[0]) {
+			this.invoices_view = new erpnext.PointOfSale.InvoicesView({
+				wrapper: $view,
+				events: {
+					view_invoice: (name) => {
 						frappe.db.get_doc("POS Invoice", name).then((doc) => {
 							this.show_view("pos");
 							this.toggle_components(false);
@@ -583,82 +480,29 @@ erpnext.PointOfSale.Controller = class {
 							this.order_summary.toggle_component(true);
 							this.order_summary.load_summary_of(doc, true);
 						});
-					});
-					$row.find(".et-print-invoice").on("click", (e) => {
-						const name = $(e.currentTarget).attr("data-name");
-						frappe.utils.print("POS Invoice", name, "EIMS POS Receipt");
-					});
-					$row.find(".et-send-mor-row").on("click", (e) => {
-						this.send_invoice_to_mor($(e.currentTarget).attr("data-name"));
-					});
-					$list.append($row);
-				});
+					},
+					print_invoice: (name) => frappe.utils.print("POS Invoice", name, "EIMS POS Receipt"),
+					send_invoice_to_mor: (name) => this.send_invoice_to_mor(name),
+				},
 			});
+			this.invoices_view_wrapper = $view[0];
+		} else {
+			this.invoices_view.load();
+		}
 	}
 
 	show_report() {
 		this.show_view("report");
 		const $view = this.wrapper.find(".et-view-report");
-		$view.html(`<section class="et-report-view">
-			<h4>${__("Sales Report")}</h4>
-			<div class="et-report-filters">
-				<div class="et-report-field et-report-from"></div>
-				<div class="et-report-field et-report-to"></div>
-				<button class="btn btn-primary et-report-run">${__("Run")}</button>
-			</div>
-			<div class="et-report-summary"></div>
-			<div class="et-report-table"></div>
-		</section>`);
-
-		const from_field = frappe.ui.form.make_control({
-			df: { label: __("From Date"), fieldtype: "Date", default: frappe.datetime.month_start() },
-			parent: $view.find(".et-report-from"),
-			render_input: true,
-		});
-		const to_field = frappe.ui.form.make_control({
-			df: { label: __("To Date"), fieldtype: "Date", default: frappe.datetime.now_date() },
-			parent: $view.find(".et-report-to"),
-			render_input: true,
-		});
-
-		const run_report = () => {
-			frappe.call({
-				method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_sales_report",
-				args: {
-					from_date: from_field.get_value(),
-					to_date: to_field.get_value(),
-					pos_profile: this.pos_profile,
-				},
-				freeze: true,
-			}).then((r) => {
-				const data = r.message || {};
-				$view.find(".et-report-summary").html(`
-					<div class="et-dash-cards">
-						<div class="et-dash-card">${__("Total Sales")}<br><span>${format_currency(data.total_sales || 0)}</span></div>
-						<div class="et-dash-card">${__("Invoice Count")}<br><span>${data.invoice_count || 0}</span></div>
-						<div class="et-dash-card">${__("Avg. Sale")}<br><span>${format_currency(data.avg_sale || 0)}</span></div>
-					</div>
-				`);
-
-				const rows = data.by_payment_mode || [];
-				const $table = $view.find(".et-report-table");
-				if (!rows.length) {
-					$table.html(`<div class="et-empty-state">${__("No data for this period")}</div>`);
-					return;
-				}
-				$table.html(`
-					<table class="table table-bordered">
-						<thead><tr><th>${__("Mode of Payment")}</th><th>${__("Amount")}</th></tr></thead>
-						<tbody>
-							${rows.map((r) => `<tr><td>${frappe.utils.escape_html(r.mode_of_payment)}</td><td>${format_currency(r.amount)}</td></tr>`).join("")}
-						</tbody>
-					</table>
-				`);
+		if (!this.report_view || this.report_view_wrapper !== $view[0]) {
+			this.report_view = new erpnext.PointOfSale.ReportView({
+				wrapper: $view,
+				events: { pos_profile: this.pos_profile },
 			});
-		};
-
-		$view.find(".et-report-run").on("click", run_report);
-		run_report();
+			this.report_view_wrapper = $view[0];
+		} else {
+			this.report_view.run_report();
+		}
 	}
 
 	clear_main() {

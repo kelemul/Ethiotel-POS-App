@@ -1,0 +1,286 @@
+/* ethiotel_pos — cart card: rows, totals, checkout, print buttons
+   split from ethiotel_pos.css (do not edit order). */
+/* ---------- Cart (left pane, like EIMS side invoice table) ---------- */
+.cart-container { display: flex; flex-direction: column; min-height: 0; }
+.abs-cart-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	min-width: 0;
+	width: 100%;
+}
+.customer-cart-container,
+.item-details-container {
+	min-width: 0;
+	width: 100%;
+	overflow: hidden;
+}
+.cart-label {
+	color: var(--eims-green);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	font-size: 12px;
+	padding: 12px 14px 0;
+	flex-shrink: 0;
+}
+.cart-header {
+	color: var(--eims-green2);
+	background: var(--eims-table-head, #f8f9fa);
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .03em;
+	padding: 9px 14px;
+	border-bottom: 2px solid var(--eims-green);
+	flex-shrink: 0;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: grid !important;
+	grid-template-columns: minmax(0, 1fr) 88px 76px 52px 88px 68px !important;
+	align-items: center;
+	gap: 8px;
+}
+.cart-header > div {
+	overflow: hidden;
+	white-space: nowrap;
+	text-align: left;
+}
+/* Table-style vertical dividers between header cells */
+.cart-header > div:not(:last-child) {
+	border-right: 1px solid var(--et-line, #E2E8ED);
+	padding-right: 8px;
+}
+/* Numeric / action columns read better right- or center-aligned, like a
+   real data table, rather than left-aligned like the item name column */
+.cart-header .qty-header,
+.cart-header .action-header { text-align: center; }
+.cart-header .unit-header,
+.cart-header .vat-header,
+.cart-header .total-header { text-align: right; }
+/* Pin each header cell's column explicitly — protects against any other
+   stylesheet on the page (current or future) redefining these same class
+   names for a different column count/order. */
+.cart-header .name-header   { grid-column: 1 !important; }
+.cart-header .qty-header    { grid-column: 2 !important; }
+.cart-header .unit-header   { grid-column: 3 !important; }
+.cart-header .vat-header    { grid-column: 4 !important; }
+.cart-header .total-header  { grid-column: 5 !important; }
+.cart-header .action-header { grid-column: 6 !important; }
+
+/* Outer table border + rounded corners so the row list reads as one
+   contained data table rather than a loose stack of cards. */
+.cart-items-section {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	min-height: 0;
+	border: 1px solid var(--et-line, #E2E8ED);
+	border-top: none;
+}
+.item-cart-items .cart-item-wrapper,
+.cart-items-section .cart-item-wrapper {
+	border-left: 3px solid transparent;
+	transition: border-color .12s ease, background .12s ease;
+	display: grid !important;
+	grid-template-columns: minmax(0, 1fr) 88px 76px 52px 88px 68px !important;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--et-line, #E2E8ED);
+}
+/* Same pinning for each row's cells, matched 1:1 to the header above and
+   to the DOM order render_cart_item() produces in the JS. */
+.cart-item-wrapper > .item-name-desc { grid-column: 1 !important; }
+.cart-item-wrapper > .cart-qty-wrap  { grid-column: 2 !important; }
+.cart-item-wrapper > .cart-unit      { grid-column: 3 !important; }
+.cart-item-wrapper > .cart-vat       { grid-column: 4 !important; }
+.cart-item-wrapper > .cart-total     { grid-column: 5 !important; }
+.cart-item-wrapper > .cart-actions   { grid-column: 6 !important; }
+
+/* Vertical column dividers, matching the header's dividers, so every
+   column has a clear boundary like a real table's cell borders. */
+.cart-item-wrapper > .item-name-desc,
+.cart-item-wrapper > .cart-qty-wrap,
+.cart-item-wrapper > .cart-unit,
+.cart-item-wrapper > .cart-vat,
+.cart-item-wrapper > .cart-total {
+	border-right: 1px solid var(--et-line, #E2E8ED);
+	padding-right: 8px;
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+.cart-item-wrapper > .cart-qty-wrap { justify-content: center; }
+.cart-item-wrapper > .cart-unit,
+.cart-item-wrapper > .cart-vat,
+.cart-item-wrapper > .cart-total { justify-content: flex-end; }
+
+/* Zebra striping — classic table look. Skipped while hovering so the
+   hover highlight below always wins visually. */
+.item-cart-items .cart-item-wrapper:nth-child(even):not(:hover),
+.cart-items-section .cart-item-wrapper:nth-child(even):not(:hover) {
+	background: var(--eims-soft, #f4f6f9);
+}
+
+.item-cart-items .cart-item-wrapper:hover,
+.cart-items-section .cart-item-wrapper:hover {
+	background: #f0f8f4;
+	border-left-color: var(--eims-green);
+}
+.item-name-desc {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.item-name-desc-text { min-width: 0; }
+.item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-qty-wrap { display: flex; align-items: center; gap: 2px; }
+.cart-unit, .cart-vat, .cart-total {
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	color: var(--et-ink, #1A1F24);
+}
+.cart-qty-btn {
+	width: 22px;
+	height: 22px;
+	min-width: 22px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid var(--eims-green);
+	border-radius: 50%;
+	background: #fff;
+	color: var(--eims-green);
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+}
+.cart-qty-btn:disabled { opacity: .35; cursor: not-allowed; }
+.cart-qty-val {
+	font-weight: 600;
+	min-width: 36px;
+	text-align: center;
+	display: inline-flex;
+	align-items: baseline;
+	justify-content: center;
+	gap: 3px;
+}
+.cart-qty-uom { font-size: 10px; color: var(--et-soft, #6B7A86); font-weight: 400; }
+.cart-eye-btn,
+.cart-delete-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	border-radius: 4px;
+	color: var(--et-soft, #6B7A86);
+	cursor: pointer;
+	transition: color .12s ease, background .12s ease;
+}
+.cart-eye-btn:hover { color: var(--eims-green); background: #f0f8f4; }
+.cart-delete-btn:hover { color: #d64545; background: #fdf0f0; }
+.no-item-wrapper { color: var(--et-soft, #6B7A86) !important; }
+
+/* ---------- Discount control (percentage / value toggle) ---------- */
+.add-discount-field {
+	width: 100%;
+}
+.et-discount-control {
+	width: 100%;
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+.et-discount-control .frappe-control {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.et-discount-mode-btn {
+	min-width: 42px;
+	font-weight: 700;
+	border-radius: 4px !important;
+	color: var(--eims-green2) !important;
+	border-color: var(--eims-green) !important;
+	background: #fff !important;
+}
+.et-discount-mode-btn:hover {
+	background: var(--eims-green) !important;
+	color: #fff !important;
+}
+.edit-discount-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+.add-discount-wrapper {
+	cursor: pointer;
+}
+
+/* ---------- Cart totals & checkout ---------- */
+.cart-totals-section {
+	flex-shrink: 0;
+}
+.grand-total-container {
+	background: var(--et-bar-grad) !important;
+	border-radius: 8px !important;
+	color: #fff !important;
+	padding: 12px 14px !important;
+}
+.grand-total-container .grand-total-label,
+.grand-total-container .grand-total-value { color: #fff !important; }
+
+.checkout-btn {
+	background: linear-gradient(120deg, var(--eims-green), #2fa16a) !important;
+	color: #fff !important;
+	border: none !important;
+	font-weight: 700 !important;
+	border-radius: 6px;
+	padding: 10px 14px !important;
+	transition: transform .12s ease, box-shadow .12s ease;
+	cursor: pointer;
+}
+.checkout-btn:hover {
+	transform: translateY(-1px) !important;
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .35) !important;
+}
+.edit-cart-btn { color: var(--eims-green) !important; font-weight: 600 !important; cursor: pointer; }
+
+/* ---------- Cart print buttons (EIMS side-invoice pair) ---------- */
+.cart-print-btns {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+.cart-print-btn {
+	flex: 1;
+	text-align: center;
+	padding: 8px 6px;
+	border-radius: 6px;
+	font-weight: 700;
+	font-size: 12.5px;
+	cursor: pointer;
+	transition: transform .12s ease, box-shadow .12s ease;
+}
+.cart-print-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .25) !important;
+}
+.cart-print-btn.save-and-print-btn {
+	background: linear-gradient(120deg, var(--eims-green), #2fa16a) !important;
+	color: #fff !important;
+	border: none !important;
+}
+.cart-print-btn.print-invoice-btn {
+	background: #fff !important;
+	color: var(--eims-green) !important;
+	border: 1px solid var(--eims-green) !important;
+}

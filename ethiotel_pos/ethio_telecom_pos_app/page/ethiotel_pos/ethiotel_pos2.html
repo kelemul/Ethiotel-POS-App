@@ -1,0 +1,575 @@
+<div id="et-pos-app" class="et-pos-shell">
+
+    <!-- ==========================================================
+        APPLICATION HEADER
+    =========================================================== -->
+
+    <header class="et-topbar">
+
+        <div class="et-topbar-left">
+
+            <button
+                id="sidebar-toggle"
+                class="et-icon-button">
+
+                <i class="fa fa-bars"></i>
+
+            </button>
+
+            <div class="et-brand">
+
+                <img
+                    class="et-brand-logo"
+                    src="/assets/ethiotel_pos/images/ethiotel-logo.png"
+                    alt="Ethio Telecom">
+
+                <div class="et-brand-info">
+
+                    <div class="et-brand-title">
+
+                        Ethio Telecom POS
+
+                    </div>
+
+                    <div class="et-brand-subtitle">
+
+                        Retail Management System
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="et-topbar-center">
+
+            <div id="global-search"></div>
+
+        </div>
+
+
+
+        <div class="et-topbar-right">
+
+            <div id="network-status"></div>
+
+            <div id="sync-status"></div>
+
+            <div id="shift-status"></div>
+
+            <div id="clock-widget"></div>
+
+            <div id="cashier-profile"></div>
+
+        </div>
+
+    </header>
+
+
+
+
+
+    <!-- ==========================================================
+        MAIN APPLICATION
+    =========================================================== -->
+
+    <div class="et-main-layout">
+
+
+
+        <!-- ================================================
+            SIDEBAR
+        ================================================= -->
+
+        <aside
+            class="et-sidebar"
+            id="et-sidebar">
+
+            <nav class="et-sidebar-nav">
+
+                <button
+                    class="et-nav-item active"
+                    data-workspace="sale">
+
+                    <i class="fa fa-shopping-cart"></i>
+
+                    <span>Sales</span>
+
+                </button>
+
+
+
+                <button
+                    class="et-nav-item"
+                    data-workspace="held">
+
+                    <i class="fa fa-pause-circle"></i>
+
+                    <span>Held Orders</span>
+
+                </button>
+
+
+
+                <button
+                    class="et-nav-item"
+                    data-workspace="dashboard">
+
+                    <i class="fa fa-chart-line"></i>
+
+                    <span>Shift Dashboard</span>
+
+                </button>
+
+
+
+                <button
+                    class="et-nav-item"
+                    data-workspace="customers">
+
+                    <i class="fa fa-users"></i>
+
+                    <span>Customers</span>
+
+                </button>
+
+
+
+                <button
+                    class="et-nav-item"
+                    data-workspace="returns">
+
+                    <i class="fa fa-undo"></i>
+
+                    <span>Returns</span>
+
+                </button>
+
+
+
+                <button
+                    class="et-nav-item"
+                    data-workspace="reports">
+
+                    <i class="fa fa-chart-bar"></i>
+
+                    <span>Reports</span>
+
+                </button>
+
+
+
+                <button
+                    class="et-nav-item"
+                    data-workspace="settings">
+
+                    <i class="fa fa-cog"></i>
+
+                    <span>Settings</span>
+
+                </button>
+
+            </nav>
+
+
+
+            <div class="et-sidebar-footer">
+
+                <div id="terminal-info"></div>
+
+            </div>
+
+        </aside>
+
+
+
+
+
+        <!-- ====================================================
+            CONTENT
+        ===================================================== -->
+
+        <main
+            id="workspace-root"
+            class="et-workspace">
+
+
+
+            <!-- ==============================================
+                SALES
+            =============================================== -->
+
+            <section
+                id="workspace-sale"
+                class="workspace active">
+
+                <div class="sale-layout">
+
+
+
+                    <!-- LEFT SIDE -->
+
+                    <section class="sale-main">
+
+
+
+                        <div
+                            id="sale-toolbar"
+                            class="workspace-toolbar">
+
+                        </div>
+
+
+
+                        <div
+                            id="category-container">
+
+                        </div>
+
+
+
+                        <div
+                            id="product-search-container">
+
+                        </div>
+
+
+
+                        <div
+                            id="product-grid-container">
+
+                        </div>
+
+                    </section>
+
+
+
+
+
+                    <!-- RIGHT SIDE -->
+
+                    <aside class="cart-column">
+
+                        <div
+                            id="customer-panel-container">
+
+                        </div>
+
+
+
+                        <div
+                            id="cart-container">
+
+                        </div>
+
+
+
+                        <div
+                            id="cart-summary-container">
+
+                        </div>
+
+
+
+                        <div
+                            id="checkout-container">
+
+                        </div>
+
+                    </aside>
+
+                </div>
+
+            </section>
+
+
+
+
+
+            <!-- ==============================================
+                HELD ORDERS
+            =============================================== -->
+
+            <section
+                id="workspace-held"
+                class="workspace">
+
+                <div class="workspace-page">
+
+                    <div class="workspace-header">
+
+                        <div>
+
+                            <h2>
+
+                                Held Orders
+
+                            </h2>
+
+                            <p>
+
+                                Resume or manage suspended sales.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="held-orders-container"
+                        class="workspace-content">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+
+
+            <!-- ==============================================
+                SHIFT DASHBOARD
+            =============================================== -->
+
+            <section
+                id="workspace-dashboard"
+                class="workspace">
+
+                <div class="workspace-page">
+
+                    <div class="workspace-header">
+
+                        <div>
+
+                            <h2>
+
+                                Shift Dashboard
+
+                            </h2>
+
+                            <p>
+
+                                Live business performance.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="dashboard-container"
+                        class="workspace-content">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+
+
+            <!-- ==============================================
+                CUSTOMERS
+            =============================================== -->
+
+            <section
+                id="workspace-customers"
+                class="workspace">
+
+                <div class="workspace-page">
+
+                    <div class="workspace-header">
+
+                        <div>
+
+                            <h2>
+
+                                Customers
+
+                            </h2>
+
+                            <p>
+
+                                Search and manage customer records.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="customers-container"
+                        class="workspace-content">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+
+
+            <!-- ==============================================
+                RETURNS
+            =============================================== -->
+
+            <section
+                id="workspace-returns"
+                class="workspace">
+
+                <div class="workspace-page">
+
+                    <div class="workspace-header">
+
+                        <div>
+
+                            <h2>
+
+                                Returns
+
+                            </h2>
+
+                            <p>
+
+                                Process returned items.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="returns-container"
+                        class="workspace-content">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+
+
+            <!-- ==============================================
+                REPORTS
+            =============================================== -->
+
+            <section
+                id="workspace-reports"
+                class="workspace">
+
+                <div class="workspace-page">
+
+                    <div class="workspace-header">
+
+                        <div>
+
+                            <h2>
+
+                                Reports
+
+                            </h2>
+
+                            <p>
+
+                                Sales reports and analytics.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="reports-container"
+                        class="workspace-content">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+
+
+            <!-- ==============================================
+                SETTINGS
+            =============================================== -->
+
+            <section
+                id="workspace-settings"
+                class="workspace">
+
+                <div class="workspace-page">
+
+                    <div class="workspace-header">
+
+                        <div>
+
+                            <h2>
+
+                                Settings
+
+                            </h2>
+
+                            <p>
+
+                                POS preferences and terminal configuration.
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="settings-container"
+                        class="workspace-content">
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+        </main>
+
+    </div>
+
+
+
+
+
+    <!-- ==========================================================
+        GLOBAL COMPONENTS
+    =========================================================== -->
+
+    <div id="drawer-root"></div>
+
+    <div id="dialog-root"></div>
+
+    <div id="notification-root"></div>
+
+    <div id="overlay-root"></div>
+
+</div>
