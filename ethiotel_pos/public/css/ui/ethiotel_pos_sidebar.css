@@ -1,0 +1,96 @@
+/* =====================================================================
+   SIDEBAR — clean navigation rail (icons only by default, expandable)
+   Branding: nav hover/active use EthioTel green (was lime/orange
+   forkiva leftovers).
+   ===================================================================== */
+/* ---------- sidebar: default = icons only ---------- */
+.etv2-sidebar {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	background: var(--etv2-surface, #fff);
+	border-right: 1px solid var(--etv2-border, #e2e8f0);
+	transition: width .2s ease;
+	overflow: hidden;
+}
+.etv2-sidebar-nav {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 10px;
+	flex: 1 1 auto;
+	overflow-y: auto;
+}
+.etv2-nav-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	border: none;
+	background: transparent;
+	padding: 10px 12px;
+	border-radius: 10px;
+	cursor: pointer;
+	text-align: left;
+	color: var(--etv2-ink-soft, #64748b);
+	font-family: inherit;
+	transition: background .15s ease, color .15s ease;
+	justify-content: center; /* centered when icon-only */
+}
+.etv2-nav-item:hover {
+	background: var(--etv2-green-soft, rgba(22, 163, 74, .16));
+	color: var(--etv2-green-dark, #15803d);
+}
+.etv2-nav-item.active {
+	background: var(--etv2-green-soft, rgba(22, 163, 74, .16));
+	color: var(--etv2-green-dark, #15803d);
+	font-weight: 700;
+}
+.etv2-nav-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 22px;
+}
+.etv2-nav-label {
+	font-size: 14px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	display: none; /* hidden by default */
+}
+.etv2-brand-name { display: none; }
+
+/* ---------- expanded state: toggle ON ---------- */
+.etv2-shell.etv2-nav-expanded {
+	--etv2-sidebar-w: 220px;
+	grid-template-columns: var(--etv2-sidebar-w) 1fr;
+}
+.etv2-shell.etv2-nav-expanded .etv2-nav-item { justify-content: flex-start; }
+.etv2-shell.etv2-nav-expanded .etv2-nav-label { display: block; }
+.etv2-shell.etv2-nav-expanded .etv2-brand-name { display: inline; }
+.etv2-shell.etv2-nav-expanded .etv2-sidebar-lock-label { display: inline; }
+
+/* sidebar footer (lock row) */
+.etv2-sidebar-footer {
+	flex: 0 0 auto;
+	padding: 10px;
+	border-top: 1px solid var(--etv2-border, #e2e8f0);
+}
+.etv2-sidebar-lock-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-radius: 10px;
+	cursor: pointer;
+	color: var(--etv2-ink-soft, #64748b);
+	justify-content: center;
+}
+.etv2-shell.etv2-nav-expanded .etv2-sidebar-lock-row { justify-content: flex-start; }
+.etv2-sidebar-lock-row:hover { background: var(--etv2-grey-100, #f5f5f5); }
+.etv2-sidebar-lock-label { font-size: 13px; font-weight: 600; display: none; }
+
+/* sidebar lock icon active state */
+.etv2-sidebar-lock.etv2-locked { color: var(--etv2-green-dark, #15803d); }

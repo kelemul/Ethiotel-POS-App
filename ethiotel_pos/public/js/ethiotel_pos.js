@@ -53,7 +53,7 @@ ethiotel_pos.queue_order = function (order_doc, ref) {
 		timestamp: new Date().toISOString(),
 		order: JSON.parse(JSON.stringify(order_doc)),
 	});
-	ethiotel_pos.save_queue(q);
+	ethiotel_pos.save_queue(q);ethiotel_pos
 	ethiotel_pos.update_offline_badge();
 	frappe.show_alert({
 		message: __("Network unavailable. Order queued for sync (id: {0}).", [ref]),
@@ -69,7 +69,7 @@ ethiotel_pos.sync_queued = function () {
 
 	const item = q[0];
 	frappe.call({
-		method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.save_offline_order",
+		method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.save_offline_order",
 		args: { order: item.order, ref: item.ref },
 		freeze: true,
 		callback: (r) => {
@@ -135,29 +135,7 @@ ethiotel_pos.cache_catalog = function (key, data) {
 	}
 };
 
-/* -------------------------------------------------------------------------
-   Intercept frappe.call:
-   - get_items / item lookups: serve from cache when offline (then queue the
-     call so data can refresh once back online)
-   - frappe.client.save (POS Invoice submit): queue the doc when offline
 
-   IMPORTANT FIX:
-   Calls that we don't need to modify MUST be forwarded to the original
-   frappe.call using `_orig_call.apply(this, arguments)` — i.e. the exact,
-   untouched original arguments. Frappe core supports two call signatures:
-     1) frappe.call({ method, args, callback })              (object form)
-     2) frappe.call(method, args, callback, headers)          (positional form)
-   The original bug rebuilt a normalized object from the positional form and
-   then called `_orig_call.call(this, args)` — passing only ONE argument.
-   frappe.call's own internal parsing re-inspects `arguments[0]` /
-   `arguments[1]` / `arguments[2]`, so when it received just one argument,
-   `arguments[1]` (the actual params, e.g. { page: "Home" }) was lost and an
-   empty payload was sent to the server — causing errors like:
-     TypeError: get_desktop_page() missing 1 required positional argument: 'page'
-   This version only builds a normalized object when it actually needs to
-   mutate something (e.g. wrap the callback for caching); otherwise it calls
-   `_orig_call.apply(this, arguments)` to preserve the original call shape.
-   ------------------------------------------------------------------------- */
 (function () {
 	if (!window.frappe || !frappe.call) return;
 	const _orig_call = frappe.call;
@@ -173,9 +151,7 @@ ethiotel_pos.cache_catalog = function (key, data) {
 	];
 
 	frappe.call = function () {
-		/* Normalize ONLY for inspection (method name, args, etc). We do not
-		   forward this normalized object unless we actually need to mutate
-		   the call (e.g. wrap the callback). */
+		
 		let opts = arguments[0];
 		if (typeof opts === "string") {
 			opts = {

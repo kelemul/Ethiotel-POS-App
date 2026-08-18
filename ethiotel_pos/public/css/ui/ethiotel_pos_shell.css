@@ -1,0 +1,151 @@
+/* =====================================================================
+   SHELL — full-window grid, workspace area, status bar, animations
+   ===================================================================== */
+
+.etv2-shell {
+	display: grid;
+	grid-template-columns: var(--etv2-sidebar-w) 1fr;
+	grid-template-rows: var(--etv2-topbar-h) minmax(0, 1fr) var(--etv2-status-h);
+	grid-template-areas:
+		"topbar  topbar"
+		"sidebar workspace"
+		"status  status";
+	height: 100%;
+	flex: 1 1 auto;
+	min-height: 0;
+	max-height: 100vh;
+	overflow: hidden;
+	width: 100%;
+	min-width: 0;
+	background: var(--etv2-bg);
+	color: var(--etv2-ink);
+	font-family: "Cairo", "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	font-size: 15px;
+	transition: grid-template-columns 220ms ease;
+}
+
+/* =====================================================================
+   VUE-STYLE FULL-WINDOW TAKEOVER
+   The POS is a full-screen app, not a Desk page. On the v2 route we
+   remove all Frappe chrome (navbar, page-head, sidebars) and let the
+   shell own 100vw x 100vh. Scoped to body[data-route] so everything
+   reverts automatically when the user navigates to another Desk page.
+   ===================================================================== */
+body[data-route="ethiotel-pos"] .navbar,
+body[data-route="ethiotel-pos"] .page-head,
+body[data-route="ethiotel-pos"] .sidebar-left,
+body[data-route="ethiotel-pos"] .layout-side-section {
+	display: none !important;
+}
+body[data-route="ethiotel-pos"] {
+	overflow: hidden;
+}
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2.content.page-container {
+	height: 100vh !important;
+	overflow: hidden !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	max-width: 100%;
+}
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .page-body,
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .container.page-body,
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .page-wrapper,
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .page-content,
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .layout-main,
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .layout-main-section-wrapper {
+	height: 100% !important;
+	max-width: 100% !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	overflow: hidden;
+}
+body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .layout-main-section {
+	height: 100% !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+/* =====================================================================
+   WORKSPACE
+   ===================================================================== */
+.etv2-workspace {
+	grid-area: workspace;
+	overflow: hidden;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+.etv2-workspace-empty {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	color: var(--etv2-ink-faint);
+	font-size: 14px;
+}
+.etv2-spinner {
+	width: 34px;
+	height: 34px;
+	border: 3px solid var(--etv2-border);
+	border-top-color: var(--etv2-green);
+	border-radius: 50%;
+	animation: etv2-spin .8s linear infinite;
+}
+
+/* Each workspace is a full-area panel rendered by a component.
+   NOT absolute — a flexible child of #etv2-workspace so the active
+   panel always owns the full measured height. */
+.etv2-ws {
+	flex: 1 1 auto;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	display: none;
+	flex-direction: column;
+	overflow: hidden;
+	animation: etv2-fade-in .22s ease;
+}
+.etv2-ws.etv2-active {
+	display: flex;
+}
+
+/* =====================================================================
+   STATUS BAR — pinned footer
+   ===================================================================== */
+.etv2-statusbar {
+	grid-area: status;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 14px;
+	background: var(--etv2-surface);
+	border-top: 1px solid var(--etv2-border);
+	font-size: 12px;
+	color: var(--etv2-ink-faint);
+}
+.etv2-status-left { display: flex; gap: 18px; white-space: nowrap; overflow: hidden; }
+.etv2-status-right { white-space: nowrap; }
+
+/* =====================================================================
+   MOBILE BOTTOM NAV (hidden on desktop)
+   ===================================================================== */
+.etv2-bottomnav {
+	display: none;
+}
+
+/* =====================================================================
+   ANIMATIONS
+   ===================================================================== */
+@keyframes etv2-spin { to { transform: rotate(360deg); } }
+@keyframes etv2-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes etv2-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }

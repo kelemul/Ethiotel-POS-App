@@ -1,0 +1,30 @@
+/* =====================================================================
+   ETHIOTEL POS UI — DESIGN TOKENS
+   Ethio Telecom green family. These tokens are consumed by every other
+   ui/ component file. Load this file FIRST.
+   ===================================================================== */
+
+:root, .etv2-shell {
+	--etv2-sidebar-w: 64px;
+	--etv2-sidebar-w-collapsed: 64px;
+	--etv2-topbar-h: 64px;
+	--etv2-status-h: 34px;
+	--etv2-green: #16a34a;
+	--etv2-green-dark: #15803d;
+	--etv2-green-soft: rgba(22, 163, 74, .16);
+	--etv2-red: #ef4444;
+	--etv2-red-dark: #dc2626;
+	--etv2-bg: #f4f6fa;
+	--etv2-surface: #c3e199;
+	--etv2-border: #e2e8f0;
+	--etv2-grey-100: #f5f5f5;
+	--etv2-grey-200: #eeeeee;
+	--etv2-ink: #1e293b;
+	--etv2-ink-soft: #64748b;
+	--etv2-ink-faint: #94a3b8;
+	--etv2-radius: 10px;
+	--etv2-radius-ctl: 8px;
+	--etv2-radius-pill: 9999px;
+	--etv2-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 2px 10px rgba(15, 23, 42, .05);
+	--etv2-shadow-brand: 0 2px 4px rgba(22, 163, 74, .4);
+}

@@ -1,0 +1,61 @@
+/* =====================================================================
+   REPORTS / RETURNS WORKSPACE — filters, stats, tables (early block)
+   ===================================================================== */
+.etv2-report-filters {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.etv2-date-field { width: 200px; }
+.etv2-report-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 14px;
+}
+.etv2-report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.etv2-report-table th, .etv2-report-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--etv2-border); }
+.etv2-report-table th { font-size: 11px; font-weight: 700; color: var(--etv2-ink-faint); text-transform: uppercase; letter-spacing: .04em; }
+
+/* =====================================================================
+   REPORTS WORKSPACE — tabs, X/Z layout (late block)
+   Branding fix: active tab now uses the defined --etv2-green token
+   (--etv2-primary was never defined, leaving the active tab unstyled).
+   ===================================================================== */
+.etv2-report-tabs { display: flex; gap: 6px; }
+.etv2-report-tab {
+	border: 1px solid var(--etv2-border);
+	background: var(--etv2-surface);
+	color: var(--etv2-ink-soft);
+	border-radius: 20px;
+	padding: 6px 14px;
+	font-size: 12px;
+	font-weight: 700;
+	font-family: inherit;
+	cursor: pointer;
+	transition: all .15s ease;
+}
+.etv2-report-tab:hover { color: var(--etv2-ink); }
+.etv2-report-tab.active { background: var(--etv2-green); border-color: var(--etv2-green); color: #fff; }
+.etv2-report-body { padding: 4px 18px 18px; overflow-y: auto; min-height: 0; gap: 14px; }
+.etv2-report-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.etv2-report-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+	align-items: start;
+}
+.etv2-report-items-card { grid-column: 1 / -1; }
+.etv2-report-inv-list { max-height: 320px; overflow-y: auto; }
+.etv2-report-inv-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 5px 0;
+	border-bottom: 1px solid var(--etv2-border);
+	font-size: 12px;
+}
+.etv2-report-inv-row:last-child { border-bottom: none; }
+.etv2-report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.etv2-report-table th, .etv2-report-table td { padding: 6px 8px; border-bottom: 1px solid var(--etv2-border); text-align: left; }
+.etv2-report-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--etv2-ink-faint); }

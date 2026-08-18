@@ -25,9 +25,8 @@
       "--primary-light": "#F3F9EB",
       "--btn-primary-bg": "#8DC63F",
       "--btn-primary": "#72A130",
-
       "--bg-color": "#F0F3F6",
-      "--fg-color": "#FFFFFF",
+      "--fg-color": "#ffffff",
       "--card-bg": "#FFFFFF",
       "--bg-light-gray": "#F6F8FA",
       "--bg-gray": "#EDF1F4",
@@ -76,11 +75,7 @@
 
   }
 
-  /* ==================================================================
-     INJECT HIGH-SPECIFICITY CSS FOR [data-theme] WINS
-     Frappe's bundled SCSS uses [data-theme="light"] selectors that
-     beat plain class rules.  We inject after Frappe's bundle.
-     ================================================================== */
+
   function injectHighSpecCSS() {
     var id = "et-high-spec";
     if (document.getElementById(id)) return;
@@ -284,8 +279,8 @@
       "  font-weight: 600 !important;",
       "}",
 
-      /* --- POSAwesome Vuetify overrides (scoped to posapp route) --- */
-      '[data-theme] body[data-page-route="posapp"] {',
+      /* --- POSAwesome Vuetify overrides (scoped to tele-pos route) --- */
+      '[data-theme] body[data-page-route="tele-pos"] {',
       "  --v-theme-primary: 141, 198, 63 !important;",
       "  --v-theme-secondary: 0, 114, 188 !important;",
       "  --v-theme-accent: 255, 194, 14 !important;",
@@ -295,12 +290,12 @@
       "  --pos-accent: #FFC20E !important;",
       "}",
 
-      '[data-theme] .posapp .v-btn--color-primary {',
+      '[data-theme] .tele-pos .v-btn--color-primary {',
       "  background-color: #8DC63F !important;",
       "  color: #fff !important;",
       "}",
 
-      '[data-theme] .posapp .v-btn--color-secondary {',
+      '[data-theme] .tele-pos .v-btn--color-secondary {',
       "  background-color: #0072BC !important;",
       "  color: #fff !important;",
       "}",
@@ -360,7 +355,7 @@
         left: e.clientX - rect.left - size / 2 + "px",
         top: e.clientY - rect.top - size / 2 + "px",
         borderRadius: "50%",
-        background: "rgba(255,255,255,0.3)",
+        background: "rgba(254, 254, 254, 0.3)",
         pointerEvents: "none",
         transform: "scale(0)",
         transition: "transform 400ms ease, opacity 400ms ease",

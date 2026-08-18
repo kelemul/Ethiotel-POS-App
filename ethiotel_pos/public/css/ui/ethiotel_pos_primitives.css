@@ -1,0 +1,92 @@
+/* =====================================================================
+   SHARED PRIMITIVES — cards, titles, empty states, pills, search,
+   workspace toolbar + content shells
+   ===================================================================== */
+.etv2-card {
+	background: var(--etv2-surface);
+	border: 1px solid var(--etv2-border);
+	border-radius: var(--etv2-radius);
+	box-shadow: var(--etv2-shadow);
+}
+.etv2-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 16px 0;
+}
+.etv2-card-title {
+	font-size: 15px;
+	font-weight: 700;
+	color: var(--etv2-ink);
+}
+.etv2-card-body { padding: 14px 16px 16px; }
+.etv2-muted { color: var(--etv2-ink-faint); }
+.etv2-page-title { font-size: 18px; font-weight: 700; color: var(--etv2-ink); }
+.etv2-empty {
+	padding: 28px 12px;
+	text-align: center;
+	color: var(--etv2-ink-faint);
+	font-size: 13px;
+}
+
+/* ---------- pills ---------- */
+.etv2-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 5px 14px;
+	border-radius: var(--etv2-radius-pill);
+}
+.etv2-pill-green { background: var(--etv2-green-soft); color: var(--etv2-green-dark); }
+.etv2-pill-muted { background: rgba(15, 23, 42, .06); color: var(--etv2-ink-soft); }
+.etv2-pill-orange { background: rgba(245, 158, 11, .14); color: #b45309; }
+.etv2-pill-red { background: rgba(239, 68, 68, .12); color: #dc2626; }
+
+/* ---------- inputs (Vuetify-style outlined) ---------- */
+.etv2-search {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: var(--etv2-surface);
+	border: 1px solid var(--etv2-border);
+	border-radius: var(--etv2-radius-ctl);
+	padding: 0 12px;
+	transition: border-color .135s ease, box-shadow .135s ease;
+}
+.etv2-search:focus-within {
+	border-color: var(--etv2-green);
+	box-shadow: var(--etv2-shadow-brand);
+}
+.etv2-search input {
+	flex: 1;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: 14px;
+	padding: 10px 0;
+	color: var(--etv2-ink);
+	min-width: 0;
+}
+.etv2-search svg { color: var(--etv2-ink-faint); flex: 0 0 auto; }
+
+/* ---------- workspace toolbar ---------- */
+.etv2-ws-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 18px;
+	flex-wrap: wrap;
+	flex: 0 0 auto;
+}
+.etv2-ws-content {
+	flex: 1 1 auto;
+	display: flex;
+	gap: 16px;
+	padding: 0 18px 18px;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+}

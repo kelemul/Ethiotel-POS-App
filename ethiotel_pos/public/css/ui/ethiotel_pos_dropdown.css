@@ -1,0 +1,72 @@
+/* =====================================================================
+   DROPDOWN MENUS (actions + profile) — brand green hover
+   ===================================================================== */
+.fk-menu-wrap { position: relative; }
+.fk-dropdown-menu {
+	position: absolute;
+	top: calc(100% + 8px);
+	right: 0;
+	min-width: 220px;
+	background: var(--etv2-surface, #fff);
+	border: 1px solid var(--etv2-border, #e2e8f0);
+	border-radius: 10px;
+	box-shadow: 0 10px 30px rgba(15, 23, 42, .12);
+	padding: 6px;
+	z-index: 200;
+	opacity: 0;
+	transform: translateY(-6px);
+	pointer-events: none;
+	transition: opacity .15s ease, transform .15s ease;
+}
+.fk-dropdown-menu.fk-menu-open {
+	opacity: 1;
+	transform: translateY(0);
+	pointer-events: auto;
+}
+.fk-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 10px;
+	border-radius: 8px;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--etv2-ink, #1e293b);
+	cursor: pointer;
+	white-space: nowrap;
+}
+.fk-menu-item:hover { background: var(--etv2-green-soft, rgba(22, 163, 74, .16)); color: var(--etv2-green-dark, #15803d); }
+.fk-menu-item svg { flex: 0 0 auto; color: var(--etv2-ink-soft, #64748b); }
+.fk-menu-item:hover svg { color: var(--etv2-green-dark, #15803d); }
+.fk-menu-item-disabled { opacity: .55; cursor: not-allowed; justify-content: space-between; }
+.fk-menu-item-disabled:hover { background: transparent; color: var(--etv2-ink, #1e293b); }
+.fk-menu-badge {
+	font-size: 10px;
+	font-weight: 700;
+	background: var(--etv2-grey-200, #eee);
+	color: var(--etv2-ink-soft, #64748b);
+	padding: 2px 6px;
+	border-radius: 6px;
+}
+.fk-menu-item-danger { color: #e74c3c; }
+.fk-menu-item-danger:hover { background: rgba(231, 76, 60, .1); color: #e74c3c; }
+.fk-menu-divider { height: 1px; background: var(--etv2-border, #e2e8f0); margin: 6px 2px; }
+.fk-menu-header { padding: 8px 10px 4px; }
+.fk-menu-header-name { font-weight: 700; font-size: 14px; color: var(--etv2-ink, #1e293b); }
+.fk-menu-header-shift { font-size: 12px; color: var(--etv2-ink-soft, #64748b); margin-top: 2px; }
+
+/* profile trigger */
+.fk-profile-btn.fk-profile-trigger {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 8px;
+	font-family: inherit;
+}
+.fk-profile-btn.fk-profile-trigger:hover { background: var(--etv2-grey-100, #f5f5f5); }
+.fk-profile-name { font-size: 13px; font-weight: 700; color: var(--etv2-ink, #1e293b); }
+.fk-caret { color: var(--etv2-ink-soft, #64748b); }

@@ -1,6 +1,4 @@
-/* ethiotel_pos — desk-wide green theme + utilities: buttons, clock, offline, print, sidebar, list view, cards, tables, forms, modals, widgets, navbar brand
-   split from ethiotel_pos.css (do not edit order). */
-/* ---------- Buttons matching EIMS ---------- */
+
 .btn-primary { background: var(--eims-green) !important; border-color: var(--eims-green) !important; }
 .btn-primary:hover { background: var(--eims-green2) !important; border-color: var(--eims-green2) !important; }
 .btn-info { background: var(--eims-teal) !important; border-color: var(--eims-teal) !important; color: #fff !important; }
@@ -41,7 +39,67 @@ body:fullscreen .point-of-sale-app { padding: 1.5% !important; }
 	margin: 0 8px;
 	animation: et-pulse 1.6s infinite;
 }
+#awesomplete_list_1{
+	background: var(--eims-green) !important;
+	border: 1px solid var(--eims-green) !important;
+	border-radius: 6px !important;
+	box-shadow: 0 4px 12px rgba(26, 122, 76, .18) !important;
+	color: #fff !important;
+}
+#awesomplete_list_1 li{
+	background:var(--eims-green2) !important;
+	color: #fff !important;
+}
+#awesomplete_list_1 li:hover{
+	background:var(--eims-green) !important;
+	color: #fff !important;
+}
+#awesomplete_list_1 li[aria-selected="true"]{
+	background:var(--eims-green2) !important;
+	color: #fff !important;
+}
+.notification-icon, .dropdown-help{
+	color: #fff !important;
+}
+/* =====================================================================
+   Help Dropdown — Ethio Telecom branding
+   Parent trigger: white text (for dark/colored navbar)
+   Dropdown menu: Ethio Telecom branded surface
+   ===================================================================== */
 
+/* ---------- Parent nav item — white ---------- */
+.dropdown-help.nav-item > .nav-link,
+.dropdown-help.nav-item > .nav-link svg {
+	color: #ffffff !important;
+	fill: #ffffff !important;
+}
+.dropdown-help.nav-item > .nav-link:hover {
+	opacity: 0.85;
+}
+
+/* ---------- Dropdown menu — Ethio Telecom branding ---------- */
+.dropdown-help .dropdown-menu {
+	background: #ffffff !important;
+	border: 1px solid rgba(0, 150, 57, 0.15) !important;
+	border-top: 3px solid #009639 !important;
+	border-radius: 10px !important;
+	box-shadow: 0 10px 28px rgba(0, 82, 155, 0.15) !important;
+	padding: 6px !important;
+}
+.dropdown-help .dropdown-menu .dropdown-item {
+	color: #1e293b !important;
+	border-radius: 6px !important;
+	font-weight: 500 !important;
+	transition: background .15s ease, color .15s ease;
+}
+.dropdown-help .dropdown-menu .dropdown-item:hover {
+	background: rgba(0, 150, 57, 0.08) !important;
+	color: #009639 !important;
+	font-weight: 700 !important;
+}
+.dropdown-help .dropdown-menu .dropdown-divider {
+	border-color: rgba(0, 82, 155, 0.12) !important;
+}
 @media print {
 	.navbar, .page-head, .page-actions, .sidebar-container { display: none !important; }
 }
@@ -106,6 +164,78 @@ body:fullscreen .point-of-sale-app { padding: 1.5% !important; }
 .list-row--head .list-row--col .frappe-control .input-checkbox:checked {
 	background-color: var(--eims-green);
 	border-color: var(--eims-green);
+}
+/* =====================================================================
+   Notifications Dropdown — Ethio Telecom branding
+   Parent trigger: white icon (for dark/colored navbar)
+   Dropdown menu: Ethio Telecom branded surface
+   ===================================================================== */
+
+/* ---------- Parent nav item — white ---------- */
+.dropdown-notifications.nav-item > .nav-link,
+.dropdown-notifications.nav-item > .nav-link svg {
+	color: #ffffff !important;
+	fill: #ffffff !important;
+	stroke: #ffffff !important;
+}
+.dropdown-notifications.nav-item > .nav-link:hover {
+	opacity: 0.85;
+}
+
+/* ---------- Dropdown menu — Ethio Telecom branding ---------- */
+.dropdown-notifications .dropdown-menu {
+	background: #ffffff !important;
+	border: 1px solid rgba(0, 150, 57, 0.15) !important;
+	border-top: 3px solid #009639 !important;
+	border-radius: 10px !important;
+	box-shadow: 0 10px 28px rgba(0, 82, 155, 0.15) !important;
+	padding: 0 !important;
+	overflow: hidden !important;
+}
+
+/* ---------- Header + tabs ---------- */
+.dropdown-notifications .notification-list-header {
+	background: #ffffff !important;
+	border-bottom: 1px solid rgba(0, 82, 155, 0.1) !important;
+	padding: 8px 10px !important;
+}
+.dropdown-notifications .notification-item-tabs .notifications-category {
+	color: #64748b !important;
+	font-weight: 600 !important;
+	border-radius: 6px !important;
+	padding: 6px 10px !important;
+	transition: background .15s ease, color .15s ease;
+}
+.dropdown-notifications .notification-item-tabs .notifications-category:hover {
+	background: rgba(0, 150, 57, 0.08) !important;
+	color: #009639 !important;
+}
+.dropdown-notifications .notification-item-tabs .notifications-category.active {
+	background: #009639 !important;
+	color: #ffffff !important;
+	border-color: #009639 !important;
+}
+
+/* ---------- Header action icons ---------- */
+.dropdown-notifications .header-actions svg {
+	color: #00529b !important;
+	fill: #00529b !important;
+}
+.dropdown-notifications .header-actions span:hover svg {
+	color: #009639 !important;
+	fill: #009639 !important;
+}
+
+/* ---------- Body / list items ---------- */
+.dropdown-notifications .notification-list-body {
+	background: #ffffff !important;
+}
+.dropdown-notifications .notification-list-body .title {
+	color: #00529b !important;
+	font-weight: 700 !important;
+}
+.dropdown-notifications .notification-list-body .subtitle {
+	color: #64748b !important;
 }
 
 /* ---------- Card visual language ---------- */
@@ -389,3 +519,77 @@ body[data-list-view] .layout-main-section {
 .desk-onboarding .onboarding-title,
 .desk-onboarding .text-muted { color: #fff !important; }
 
+/* =====================================================================
+   Shortcut Cards — Ethio Telecom, white text, modern interactive feel
+   ===================================================================== */
+
+:root {
+	--eims-green2: #009639;
+	--eims-green2-dark: #00762d;
+}
+
+#page-Workspaces .shortcut-widget-box,
+#page-Workspaces .shortcut-widget-box[style] {
+	background: linear-gradient(150deg, var(--eims-green2), var(--eims-green2-dark)) !important;
+	background-image: linear-gradient(150deg, var(--eims-green2), var(--eims-green2-dark)) !important;
+	border: none !important;
+	border-radius: 16px !important;
+	box-shadow: 0 4px 14px rgba(0, 150, 57, 0.25) !important;
+	position: relative;
+	overflow: hidden;
+	transition: transform .22s cubic-bezier(.2,.8,.2,1),
+	            box-shadow .22s cubic-bezier(.2,.8,.2,1) !important;
+}
+
+/* subtle sheen sweep on hover for a modern SPA feel */
+#page-Workspaces .shortcut-widget-box::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(120deg, rgba(255,255,255,0) 40%, rgba(255,255,255,.18) 50%, rgba(255,255,255,0) 60%);
+	transform: translateX(-120%);
+	transition: transform .5s ease;
+	pointer-events: none;
+}
+#page-Workspaces .shortcut-widget-box:hover::after {
+	transform: translateX(120%);
+}
+
+#page-Workspaces .shortcut-widget-box:hover,
+#page-Workspaces .shortcut-widget-box[style]:hover {
+	transform: translateY(-5px) scale(1.015) !important;
+	box-shadow: 0 14px 30px rgba(0, 150, 57, 0.38) !important;
+	cursor: pointer;
+}
+#page-Workspaces .shortcut-widget-box:active {
+	transform: translateY(-2px) scale(1.005) !important;
+	transition-duration: .08s !important;
+}
+
+#page-Workspaces .shortcut-widget-box .widget-head,
+#page-Workspaces .shortcut-widget-box .widget-body,
+#page-Workspaces .shortcut-widget-box .widget-footer {
+	background: transparent !important;
+}
+
+/* force white on every possible nested title element */
+#page-Workspaces .shortcut-widget-box .widget-title,
+#page-Workspaces .shortcut-widget-box .widget-title span,
+#page-Workspaces .shortcut-widget-box .widget-title .ellipsis {
+	color: #ffffff !important;
+	font-weight: 700 !important;
+}
+#page-Workspaces .shortcut-widget-box .widget-subtitle {
+	color: rgba(255, 255, 255, 0.75) !important;
+}
+
+#page-Workspaces .shortcut-widget-box .widget-control svg,
+#page-Workspaces .shortcut-widget-box .widget-control svg use {
+	color: #ffffff !important;
+	fill: #ffffff !important;
+	stroke: #ffffff !important;
+	transition: transform .22s ease;
+}
+#page-Workspaces .shortcut-widget-box:hover .widget-control svg {
+	transform: translate(3px, -3px);
+}

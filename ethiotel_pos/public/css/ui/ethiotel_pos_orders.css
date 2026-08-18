@@ -1,0 +1,151 @@
+/* =====================================================================
+   HELD ORDERS + CUSTOMER WORKSPACE
+   ===================================================================== */
+.etv2-orders-grid {
+	flex: 1 1 auto;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 14px;
+	overflow-y: auto;
+	align-content: start;
+	min-height: 0;
+	padding: 2px;
+}
+.etv2-order-card {
+	background: var(--etv2-surface);
+	border: 1px solid var(--etv2-border);
+	border-radius: var(--etv2-radius);
+	box-shadow: var(--etv2-shadow);
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	transition: all .135s ease;
+}
+.etv2-order-card:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--etv2-shadow);
+	border-color: var(--etv2-green);
+}
+.etv2-order-id { font-size: 13px; font-weight: 700; color: var(--etv2-ink); }
+.etv2-order-meta { font-size: 12px; color: var(--etv2-ink-soft); display: flex; flex-direction: column; gap: 2px; }
+.etv2-order-total { font-size: 18px; font-weight: 700; color: var(--etv2-green-dark); margin-top: auto; }
+.etv2-order-actions { display: flex; gap: 8px; }
+.etv2-order-actions .etv2-btn { flex: 1; }
+
+/* =====================================================================
+   CUSTOMER WORKSPACE
+   ===================================================================== */
+.etv2-customer-body {
+	flex: 1 1 auto;
+	display: flex;
+	gap: 16px;
+	min-height: 0;
+	padding: 0 18px 18px;
+}
+.etv2-customer-grid {
+	flex: 1 1 auto;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+	gap: 12px;
+	overflow-y: auto;
+	align-content: start;
+}
+.etv2-customer-card {
+	background: var(--etv2-surface);
+	border: 1px solid var(--etv2-border);
+	border-radius: var(--etv2-radius);
+	box-shadow: var(--etv2-shadow);
+	padding: 14px;
+	cursor: pointer;
+	transition: all .135s ease;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.etv2-customer-card:hover {
+	transform: translateY(-2px);
+	border-color: var(--etv2-green);
+	box-shadow: var(--etv2-shadow);
+}
+.etv2-customer-card.selected {
+	border-color: var(--etv2-green);
+	box-shadow: 0 0 0 3px var(--etv2-green-soft);
+}
+.etv2-customer-avatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	background: var(--etv2-green);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 15px;
+	font-weight: 700;
+	flex: 0 0 auto;
+	overflow: hidden;
+}
+.etv2-customer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.etv2-customer-card-info { min-width: 0; }
+.etv2-customer-card-name {
+	font-size: 13px;
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.etv2-customer-card-sub { font-size: 11px; color: var(--etv2-ink-faint); }
+
+.etv2-customer-panel {
+	width: 340px;
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+	min-height: 0;
+}
+.etv2-customer-panel-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	height: 100%;
+	color: var(--etv2-ink-faint);
+	text-align: center;
+	padding: 20px;
+}
+.etv2-cp-head {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 22px 16px 16px;
+	border-bottom: 1px solid var(--etv2-border);
+}
+.etv2-cp-avatar {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: var(--etv2-green);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 24px;
+	font-weight: 700;
+	overflow: hidden;
+}
+.etv2-cp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.etv2-cp-name { font-size: 16px; font-weight: 700; }
+.etv2-cp-meta { font-size: 12px; color: var(--etv2-ink-soft); }
+.etv2-cp-section { padding: 12px 16px; border-bottom: 1px solid var(--etv2-border); }
+.etv2-cp-section-title { font-size: 11px; font-weight: 700; color: var(--etv2-ink-faint); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.etv2-cp-field { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
+.etv2-cp-field-label { color: var(--etv2-ink-soft); }
+.etv2-cp-field-value { font-weight: 600; text-align: right; }
+.etv2-cp-txn { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--etv2-border); }
+.etv2-cp-txn:last-child { border-bottom: none; }
+.etv2-cp-txn-name { color: var(--etv2-ink-soft); font-size: 12px; }
+.etv2-cp-txn-amt { font-weight: 700; }

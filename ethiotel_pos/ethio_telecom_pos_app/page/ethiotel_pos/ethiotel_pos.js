@@ -1,99 +1,74 @@
-frappe.provide("erpnext.PointOfSale");
+frappe.pages["ethiotel-pos"].on_page_load = function (wrapper) {
+	frappe.ui.make_app_page({
+		parent: wrapper,
+		title: __("Point of Sale"),
+		single_column: true,
+	});
 
-(function () {
-	function apply_ethiopos_fullscreen_layout() {
-		$("body").addClass("ethiopos-fullscreen");
-		const $navbar = $(".navbar-home, header.navbar, #navbar-breadcrumbs, .navbar-container");
-		const $sidebar = $("#sidebar, .sidebar, .sidebar-container");
-		const $pageHead = $(".page-head, .page-header, .page-actions, .layout-main-section-header");
-		const $breadcrumbs = $(".breadcrumb-container, #page-breadcrumbs, .page-breadcrumbs");
+	// page-scoped stylesheets (not added to hooks.py so they never leak
+	// onto other Desk pages) — one file per UI component, under css/ui/.
+	// Load order matters: tokens first, cascade preserved, responsive last.
+	["ui/ethiotel_pos_tokens.css",
+	 "ui/ethiotel_pos_shell.css",
+	 "ui/ethiotel_pos_topbar.css",
+	 "ui/ethiotel_pos_sidebar.css",
+	 "ui/ethiotel_pos_dropdown.css",
+	 "ui/ethiotel_pos_primitives.css",
+	 "ui/ethiotel_pos_buttons.css",
+	 "ui/ethiotel_pos_sale.css",
+	 "ui/ethiotel_pos_dashboard.css",
+	 "ui/ethiotel_pos_orders.css",
+	 "ui/ethiotel_pos_reports.css",
+	 "ui/ethiotel_pos_dialogs.css",
+	 "ui/ethiotel_pos_payment.css",
+	 "ui/ethiotel_pos_checkin.css",
+	 "ui/ethiotel_pos_invoices.css",
+	 "ui/ethiotel_pos_forkiva_sale.css",
+	 "ui/ethiotel_pos_responsive.css"].forEach((f) => {
+		$('<link rel="stylesheet">').attr("href", `/assets/ethiotel_pos/css/${f}`).appendTo(document.head);
+	});
 
-		$navbar.each((_, el) => {
-			const $el = $(el);
-			$el.data("eth-pos-orig-display", $el.css("display"));
-			$el.css("display", "none");
-		});
-		$sidebar.each((_, el) => {
-			const $el = $(el);
-			$el.data("eth-pos-orig-display", $el.css("display"));
-			$el.css("display", "none");
-		});
-		$pageHead.each((_, el) => {
-			const $el = $(el);
-			$el.data("eth-pos-orig-display", $el.css("display"));
-			$el.css("display", "none");
-		});
-		$breadcrumbs.each((_, el) => {
-			const $el = $(el);
-			$el.data("eth-pos-orig-display", $el.css("display"));
-			$el.css("display", "none");
-		});
+	// when offline.
+	$('<link rel="stylesheet">')
+		.attr("href", "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap")
+		.appendTo(document.head);
 
-		$(".page-container").addClass("ethiopos-page-container");
-		$(".layout-main-section").addClass("ethiopos-layout-main");
-		$("#page-ethiotel-pos, [data-page-route='ethiotel-pos']").addClass("ethiopos-page-route");
-	}
-
-	frappe.pages["ethiotel-pos"].on_page_load = function (wrapper) {
-		frappe.ui.make_app_page({
-			parent: wrapper,
-			title: __("Point of Sale"),
-			single_column: true,
-		});
-
-		frappe.require("ethiotel-pos.bundle.js", function () {
-			setTimeout(apply_ethiopos_fullscreen_layout, 30);
-			setTimeout(apply_ethiopos_fullscreen_layout, 250);
-			setTimeout(apply_ethiopos_fullscreen_layout, 800);
-			$(window).on("hashchange.eth-pos", () => {
-				if (frappe.get_route && frappe.get_route()[0] !== "ethiotel-pos") {
-					restore_ethiopos_fullscreen_layout();
-				} else {
-					apply_ethiopos_fullscreen_layout();
-				}
-			});
-			wrapper.pos = new erpnext.PointOfSale.Controller(wrapper);
-			window.cur_pos = wrapper.pos;
-		});
+	// ---- Print helper: every print opens in a new popped-out window ----
+	// `frappe.utils.print` is often invoked from inside async frappe.call
+	// callbacks (after save/submit). Browsers block window.open() there as a
+	// non-gesture popup, so no window appears. These helpers open the window
+	// from a user gesture (or a placeholder captured in the gesture) and point
+	// it at Frappe's /printview route with trigger_print=1.
+	const PRINT_FEATURES = "width=900,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes";
+	window.ethiotel_print_url = function (doctype, name, print_format, opts) {
+		opts = opts || {};
+		const lang = opts.lang || (frappe.boot && frappe.boot.lang) || "en";
+		const letterhead = opts.letterhead || "";
+		return frappe.urllib.get_full_url(
+			"/printview?doctype=" + encodeURIComponent(doctype) +
+			"&name=" + encodeURIComponent(name) +
+			"&trigger_print=1" +
+			"&format=" + encodeURIComponent(print_format) +
+			"&no_letterhead=" + (letterhead ? "0" : "1") +
+			"&letterhead=" + encodeURIComponent(letterhead) +
+			"&_lang=" + encodeURIComponent(lang)
+		);
+	};
+	window.ethiotel_print = function (doctype, name, print_format, opts) {
+		const win = window.open(ethiotel_print_url(doctype, name, print_format, opts), "_blank", PRINT_FEATURES);
+		if (!win) frappe.msgprint(__("Please allow pop-ups to print the document."));
+		return win;
+	};
+	// Capture a blank popup window during a user gesture, then set its
+	// location once the (async) document name becomes available.
+	window.ethiotel_print_placeholder = function () {
+		const win = window.open("", "_blank", PRINT_FEATURES);
+		if (!win) frappe.msgprint(__("Please allow pop-ups to print the document."));
+		return win;
 	};
 
-	function restore_ethiopos_fullscreen_layout() {
-		$("body").removeClass("ethiopos-fullscreen");
-		$(".navbar-home, header.navbar, #navbar-breadcrumbs, .navbar-container").each((_, el) => {
-			const $el = $(el);
-			const orig = $el.data("eth-pos-orig-display");
-			if (orig !== undefined) $el.css("display", orig);
-			else $el.css("display", "");
-		});
-		$("#sidebar, .sidebar, .sidebar-container").each((_, el) => {
-			const $el = $(el);
-			const orig = $el.data("eth-pos-orig-display");
-			if (orig !== undefined) $el.css("display", orig);
-			else $el.css("display", "");
-		});
-		$(".page-head, .page-header, .page-actions, .layout-main-section-header").each((_, el) => {
-			const $el = $(el);
-			const orig = $el.data("eth-pos-orig-display");
-			if (orig !== undefined) $el.css("display", orig);
-			else $el.css("display", "");
-		});
-		$(".breadcrumb-container, #page-breadcrumbs, .page-breadcrumbs").each((_, el) => {
-			const $el = $(el);
-			const orig = $el.data("eth-pos-orig-display");
-			if (orig !== undefined) $el.css("display", orig);
-			else $el.css("display", "");
-		});
-		$(".page-container").removeClass("ethiopos-page-container");
-		$(".layout-main-section").removeClass("ethiopos-layout-main");
-	}
-
-	frappe.pages["ethiotel-pos"].refresh = function (wrapper) {
-		setTimeout(apply_ethiopos_fullscreen_layout, 30);
-		setTimeout(apply_ethiopos_fullscreen_layout, 200);
-		if (document.scannerDetectionData) {
-			onScan.detachFrom(document);
-			wrapper.pos.wrapper.html("");
-			wrapper.pos.check_opening_entry();
-		}
-	};
-})();
+	frappe.require("ethiotel-pos-v2.bundle.js", function () {
+		wrapper.pos_v2 = new erpnext.POSV2.Shell(wrapper);
+		window.cur_pos_v2 = wrapper.pos_v2;
+	});
+};

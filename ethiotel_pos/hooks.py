@@ -12,7 +12,7 @@ app_license = "mit"
 # ------------------
 
 # required_apps = []
-required_apps = ["erpnext", "posawesome"]\
+required_apps = ["erpnext"]
 
 fixtures = [{
     "dt": "Custom Field",
@@ -38,14 +38,14 @@ fixtures = [{
 
 # include js, css files in header of desk.html
 app_include_css = [
-    "/assets/ethiotel_pos/css/ethiotel_branding.css",
+    # "/assets/ethiotel_pos/css/ethiotel_branding.css",
     "/assets/ethiotel_pos/css/ethiotel_pos.css",
+    
 ]
 app_include_js = [
     "/assets/ethiotel_pos/js/ethiotel_pos.js",
-    "/assets/ethiotel_pos/js/navbar_main.js",
-    "/assets/ethiotel_pos/js/navbar_drawer.js",
-    "/assets/ethiotel_pos/js/erp_pos.js"
+    "/assets/ethiotel_pos/js/erp_pos.js",
+    "/assets/ethiotel_pos/js/workspace_branding.js"
 ]
 
 # Add or update the after_migrate hook

@@ -21,9 +21,9 @@
 
 /* Fix the Navbar Icons (Account, Offline, etc.) */
 .pos-navbar-enhanced .v-icon,
-.pos-text-primary,
-.text-primary {
-    color: #009639 !important;
+.etv2-shell .pos-text-primary,
+.etv2-shell .text-primary {
+	color: #009639 !important;
 }
 
 /* Style the Profile Chip */
@@ -64,11 +64,11 @@
 /* Active Item Styling */
 .drawer-custom .active-item {
     background-color: #009639 !important; /* Green background for selected */
-    color: #ffffff !important;
+    color: #8b1414 !important;
 }
 
 .drawer-custom .active-item .drawer-icon {
-    color: #ffffff !important; /* White icon for selected */
+    color: #661717 !important; /* White icon for selected */
 }
 
 /* Header Text Styling */

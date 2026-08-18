@@ -1,17 +1,5 @@
-/* ethiotel_pos — CSS entry point (aggregator).
-   Split into one file per card/component. Import order is REQUIRED —
-   it mirrors the original monolithic cascade (later wins), so:
-   base -> item selector -> cart -> numpad -> item details -> payment
-   -> past orders -> desk theme -> POS layout/pages -> responsive (last). */
 
 @import url("/assets/ethiotel_pos/css/erp_pos.css");
 @import url("/assets/ethiotel_pos/css/pos_base.css");
-@import url("/assets/ethiotel_pos/css/pos_item_selector.css");
-@import url("/assets/ethiotel_pos/css/pos_cart.css");
-@import url("/assets/ethiotel_pos/css/pos_numpad.css");
-@import url("/assets/ethiotel_pos/css/pos_item_details.css");
-@import url("/assets/ethiotel_pos/css/pos_payment.css");
-@import url("/assets/ethiotel_pos/css/pos_past_orders.css");
 @import url("/assets/ethiotel_pos/css/pos_desk.css");
-@import url("/assets/ethiotel_pos/css/pos_layout.css");
-@import url("/assets/ethiotel_pos/css/pos_responsive.css");
+/* @import url("/assets/ethiotel_pos/css/pos_responsive.css"); */

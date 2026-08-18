@@ -1,0 +1,464 @@
+/* =====================================================================
+   PAYMENT — etv2 checkout (payment pills + change) and forkiva pay
+   dialog (modes / keypad / calculator / summary / footer buttons).
+   Branding: charge button + calculator/quick-pay accents in brand green.
+   ===================================================================== */
+
+/* ---------- checkout: payment modes + change ---------- */
+.etv2-pay-modes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.etv2-pay-label { font-size: 11px; font-weight: 700; color: var(--etv2-ink-faint); text-transform: uppercase; letter-spacing: .04em; }
+.etv2-pay-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.etv2-pay-pill {
+	padding: 8px 16px;
+	border-radius: var(--etv2-radius-pill);
+	border: 1px solid var(--etv2-border);
+	background: var(--etv2-surface);
+	color: var(--etv2-ink-soft);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all .135s ease;
+}
+.etv2-pay-pill:hover { border-color: var(--etv2-green); color: var(--etv2-green-dark); }
+.etv2-pay-pill.active {
+	background: var(--etv2-green);
+	border-color: transparent;
+	color: #fff;
+	box-shadow: var(--etv2-shadow-brand);
+}
+.etv2-pay-change {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 15px;
+	font-weight: 700;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid var(--etv2-border);
+	color: var(--etv2-green-dark);
+}
+.etv2-pay-change-neg { color: #ef4444; }
+
+/* ---------- forkiva payment dialog ---------- */
+.fk-pay-dialog .modal-dialog {
+	max-width: 960px !important;
+	width: 95vw;
+	margin: .5rem auto; /* slim vertical margin so the dialog never clips on short screens */
+}
+.fk-pay-dialog .modal-content {
+	max-height: calc(100vh - 1rem);
+	display: flex;
+	flex-direction: column;
+}
+.fk-pay-dialog .modal-body { padding: 0; overflow: hidden; }
+.fk-pay-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+	height: min(72vh, calc(100vh - 9rem));
+	min-height: 0; /* let it shrink on small viewports instead of clipping */
+	max-height: none;
+	overflow: hidden;
+}
+/* thin themed scrollbars instead of the default arrowed OS scrollbar */
+.fk-pay-finalize, .fk-pay-summary {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(22, 163, 74, .45) transparent;
+}
+.fk-pay-finalize::-webkit-scrollbar,
+.fk-pay-summary::-webkit-scrollbar { width: 6px; }
+.fk-pay-finalize::-webkit-scrollbar-thumb,
+.fk-pay-summary::-webkit-scrollbar-thumb {
+	background: rgba(22, 163, 74, .45);
+	border-radius: 3px;
+}
+.fk-pay-finalize {
+	height: 100%;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 18px 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+.fk-pay-summary {
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	background-color: var(--fk-grey-100);
+	padding: 18px 16px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.fk-pay-title {
+	font-weight: 700;
+	font-size: 1.5rem;
+	color: var(--fk-ink);
+}
+
+.fk-pay-section-title {
+	color: var(--fk-grey-700);
+	font-size: 1rem;
+	font-weight: 700;
+	letter-spacing: 1px;
+	margin-bottom: .8rem;
+}
+
+/* payment modes — forkiva payment-modes-card */
+.fk-pay-modes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+.fk-pay-mode {
+	flex: 1 1 30%;
+	min-width: 150px;
+	border: 1px solid rgba(22, 163, 74, .28);
+	border-radius: 10px;
+	padding: 12px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	cursor: pointer;
+	transition: all .2s ease;
+	position: relative;
+	background: linear-gradient(180deg, #ffffff, #f2faf4);
+}
+.fk-pay-mode:hover {
+	border-color: var(--fk-primary);
+	background: #ecf8ef;
+	transform: translateY(-1px);
+}
+.fk-pay-mode .fk-pm-info { display: flex; align-items: center; gap: 10px; }
+.fk-pay-mode .fk-pm-name { font-size: .9rem; font-weight: 700; color: var(--fk-ink); }
+.fk-pay-mode .fk-pm-check {
+	height: 19px;
+	width: 19px;
+	border-radius: 50%;
+	border: 1px solid rgba(22, 163, 74, .4);
+	background: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+}
+.fk-pay-mode.active {
+	border-color: var(--fk-primary-dark);
+	background: linear-gradient(135deg, var(--fk-primary), var(--fk-primary-dark));
+	color: #fff;
+	box-shadow: 0 6px 16px rgba(22, 163, 74, .35);
+}
+.fk-pay-mode.active .fk-pm-name { color: #fff; }
+.fk-pay-mode.active .fk-pm-check {
+	background: #fff;
+	border-color: #fff;
+}
+.fk-pay-mode.active .fk-pm-check svg path { stroke: var(--fk-primary); }
+
+/* amount / change rows */
+.fk-pay-amount-row {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.fk-pay-input {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid var(--fk-border);
+	border-radius: 10px;
+	background: var(--fk-surface);
+	padding: 0 12px;
+}
+.fk-pay-input:focus-within { border-color: var(--fk-primary); box-shadow: 0 0 0 3px var(--fk-primary-soft); }
+.fk-pay-input span { color: var(--fk-grey-700); font-weight: 600; flex: 0 0 auto; }
+.fk-pay-input input {
+	flex: 1 1 auto;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: 18px;
+	font-weight: 700;
+	padding: 10px 0;
+	color: var(--fk-ink);
+	min-width: 0;
+}
+.fk-change-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 12px;
+	border-radius: 10px;
+	background: rgba(46, 204, 113, .1);
+}
+.fk-change-row span { font-weight: 600; color: var(--fk-grey-700); }
+.fk-change-row b { color: var(--fk-success); font-weight: 800; font-size: 16px; }
+.fk-change-row.fk-change-neg b { color: var(--fk-error); }
+
+/* forkiva keypad */
+.fk-keypad-grid,
+.fk-quick-pay-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: .75rem;
+}
+.fk-pad-btn,
+.fk-quick-pay-btn {
+	height: 62px;
+	font-size: 1.3rem;
+	font-weight: 700;
+	text-transform: none;
+	border-radius: 10px;
+	cursor: pointer;
+	font-family: inherit;
+	transition: transform .1s ease;
+}
+.fk-pad-btn:active, .fk-quick-pay-btn:active { transform: scale(.96); }
+.fk-pad-btn {
+	background: var(--fk-surface);
+	border: 1px dashed rgba(224, 224, 224, .9);
+	color: var(--fk-ink);
+}
+.fk-pad-btn:hover { border-color: var(--fk-primary); color: var(--fk-primary); }
+.fk-pad-btn.fk-pad-clear {
+	background: rgba(231, 76, 60, .12);
+	border: none;
+	color: var(--fk-error);
+}
+.fk-pad-btn.fk-pad-clear:hover { background: rgba(231, 76, 60, .2); }
+.fk-quick-pay-btn {
+	background: rgba(22, 163, 74, .16);
+	border: none;
+	color: #15803d;
+	font-size: 1.15rem;
+}
+.fk-quick-pay-btn:hover { background: rgba(22, 163, 74, .25); }
+.fk-calculator-open-btn {
+	width: 100%;
+	min-height: 46px;
+	border-radius: 12px;
+	font-weight: 700;
+	text-transform: none;
+	border: none;
+	background: var(--fk-primary-soft);
+	color: var(--fk-primary);
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+.fk-calculator-open-btn:hover { background: rgba(22, 163, 74, .18); }
+
+/* summary rows (forkiva RowLine + grand-total + change-return) */
+.fk-summary-rows { display: flex; flex-direction: column; }
+.fk-summary-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: .8rem;
+	font-size: .95rem;
+	color: var(--fk-ink);
+}
+.fk-summary-row .fk-sr-value { font-weight: 700; }
+.fk-summary-row.fk-sr-grand {
+	border-top: 1px dashed var(--fk-grey-300);
+	border-bottom: 1px dashed var(--fk-grey-300);
+	padding: .8rem 0;
+	font-size: 1rem;
+}
+.fk-summary-row.fk-sr-grand .fk-sr-title { font-weight: 700; }
+.fk-summary-row.fk-sr-grand .fk-sr-value { color: var(--fk-primary); font-size: 1.15rem; }
+.fk-summary-row.fk-sr-change .fk-sr-value { color: var(--fk-success); }
+.fk-summary-row.fk-sr-change .fk-sr-value.fk-sr-neg { color: var(--fk-error); }
+
+.fk-pay-footer {
+	margin-top: auto;
+	padding: 12px 14px;
+	border-top: 1px solid rgba(22, 163, 74, .25);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	position: sticky;
+	bottom: 0;
+	background: var(--fk-grey-100);
+}
+.fk-pay-footer-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.fk-pay-footer-btns button {
+	flex: 1 1 0;
+	min-height: 46px;
+	border-radius: 10px;
+	font-size: 15px;
+	font-weight: 700;
+	cursor: pointer;
+	border: none;
+	font-family: inherit;
+	transition: transform .1s ease, background .15s ease, box-shadow .15s ease;
+}
+.fk-pay-footer-btns button:active { transform: scale(.97); }
+.fk-pay-footer-btns .fk-btn-cancel {
+	background: var(--etv2-green-dark);
+	color: var(--fk-ink);
+	flex: 0 0 110px;
+}
+.fk-btn-cancel:hover { background:var(--etv2-green) }
+.fk-btn-charge {
+	background: var(--etv2-green-dark);
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(22, 163, 74, .35);
+}
+.fk-btn-charge:hover {
+	background: var(--etv2-green);
+	transform: translateY(-1px);
+	box-shadow: 0 6px 16px rgba(22, 163, 74, .45);
+}
+.fk-btn-charge-print {
+	background: var(--etv2-green-dark);
+	color: #fff;
+	width: 100%;
+	min-height: 48px;
+	border-radius: 10px;
+	border: none;
+	font-size: 15px;
+	font-weight: 700;
+	cursor: pointer;
+	font-family: inherit;
+	box-shadow: 0 4px 12px rgba(22, 163, 74, .3);
+	transition: transform .1s ease, background .15s ease, box-shadow .15s ease;
+}
+.fk-btn-charge-print:hover { background: var(--etv2-green);
+	box-shadow: 0 6px 16px rgba(22, 163, 74, .4); }
+.fk-btn-charge-print:active { transform: scale(.97); }
+
+/* Hold / Print Receipt — brand green outline buttons */
+.fk-pay-footer .fk-btn-secondary {
+	background: var(--fk-surface);
+	border: 1px solid rgba(22, 163, 74, .4);
+	color: var(--fk-primary-dark);
+}
+.fk-pay-footer .fk-btn-secondary:hover {
+	background: var(--fk-primary-soft);
+	border-color: var(--fk-primary);
+	color: var(--fk-primary);
+}
+
+/* ---------- short viewports: compact the checkout so every control
+   stays reachable with the internal scrollbars ---------- */
+@media (max-height: 720px) {
+	.fk-pay-layout { height: calc(100vh - 7.5rem); }
+	.fk-pay-finalize { padding: 12px 16px; gap: 10px; }
+	.fk-pay-summary { padding: 12px 14px; }
+	.fk-pay-title { font-size: 1.25rem; }
+	.fk-pay-section-title { margin-bottom: .5rem; }
+	.fk-pad-btn, .fk-quick-pay-btn { height: 48px; font-size: 1.1rem; }
+	.fk-pay-footer-btns button { min-height: 40px; font-size: 14px; }
+	.fk-pay-footer { padding: 10px 12px; }
+	.fk-btn-charge-print { min-height: 42px; }
+}
+
+/* ---------- very short viewports: let the whole modal scroll ---------- */
+@media (max-height: 560px) {
+	.fk-pay-dialog .modal-body { overflow-y: auto; }
+	.fk-pay-layout { height: auto; overflow: visible; }
+	.fk-pay-finalize, .fk-pay-summary { height: auto; overflow: visible; }
+	.fk-pay-footer { position: static; }
+	.fk-pay-summary { order: -1; }
+}
+
+/* ---------- calculator dialog ---------- */
+.fk-calc-card {
+	--calc-outline: rgba(30, 41, 59, .12);
+	--calc-outline-strong: rgba(30, 41, 59, .16);
+	--calc-muted: rgba(30, 41, 59, .52);
+	border: 1px solid var(--calc-outline);
+	border-radius: 32px;
+	overflow: hidden;
+	background: var(--fk-surface);
+}
+.fk-calc-content { padding: 1.5rem 1.5rem 1rem; }
+.fk-calc-display {
+	border: 1px solid var(--calc-outline-strong);
+	border-radius: 24px;
+	padding: 1rem 1.2rem;
+	min-height: 130px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: center;
+	background: linear-gradient(180deg, rgba(255, 255, 255, .95), #fff);
+	margin-top: 1rem;
+	box-shadow: inset 0 1px rgba(30, 41, 59, .04);
+}
+.fk-calc-expression {
+	color: var(--calc-muted);
+	font-size: 1.25rem;
+	font-weight: 700;
+	min-height: 1.6rem;
+	line-height: 1;
+}
+.fk-calc-preview {
+	color: var(--fk-ink);
+	font-size: 2.9rem;
+	line-height: 1.05;
+	font-weight: 800;
+	margin-top: .2rem;
+	word-break: break-all;
+}
+.fk-calc-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: .95rem;
+	margin-top: 1.2rem;
+}
+.fk-calc-btn {
+	height: 69px;
+	border-radius: 15px;
+	font-size: 1.8rem;
+	font-weight: 600;
+	text-transform: none;
+	border: 1px solid var(--fk-border);
+	background: var(--fk-surface);
+	color: var(--fk-ink);
+	cursor: pointer;
+	font-family: inherit;
+	transition: box-shadow .15s ease, background .15s ease;
+	min-width: 0;
+	padding: 0;
+}
+.fk-calc-btn:hover { box-shadow: 0 2px 6px rgba(30, 41, 59, .12); }
+.fk-calc-btn.fk-calc-op { color: var(--fk-primary); border-color: rgba(22, 163, 74, .35); }
+.fk-calc-btn.fk-calc-clear { color: var(--fk-error); border-color: rgba(231, 76, 60, .35); }
+.fk-calc-actions {
+	padding: 0 1.5rem 1.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: .75rem;
+}
+.fk-calc-actions button {
+	min-height: 46px;
+	border-radius: 12px;
+	font-size: 15px;
+	font-weight: 700;
+	cursor: pointer;
+	border: none;
+	padding: 0 20px;
+	font-family: inherit;
+}
+.fk-calc-cancel-btn { background: var(--fk-grey-300); color: var(--fk-ink); }
+.fk-calc-apply-btn { background: var(--fk-primary); color: #fff; }
+.fk-calc-apply-btn:hover { background: var(--fk-primary-dark); }
+
+/* ---------- pay secondary buttons ---------- */
+.fk-pay-secondary-btns { display: flex; gap: 10px; margin-top: 4px; }
+.fk-btn-secondary {
+	flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 13px; font-weight: 700;
+	cursor: pointer; border: 1px dashed var(--fk-border); background: var(--fk-surface); color: var(--fk-ink);
+	font-family: inherit;
+	transition: transform .1s ease, border-color .1s ease, color .1s ease;
+}
+.fk-btn-secondary:hover { border-color: var(--fk-primary); color: var(--fk-primary); }
+.fk-btn-secondary:active { transform: scale(.97); }

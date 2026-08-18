@@ -1,0 +1,47 @@
+/* =====================================================================
+   INVOICES WORKSPACE — list, filters, MoR actions
+   ===================================================================== */
+.etv2-invoices { gap: 0; }
+.etv2-invoices > .etv2-ws-toolbar { flex: 0 0 100%; max-width: 100%; width: 100%; }
+.etv2-inv-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.etv2-inv-filters input, .etv2-inv-filters select {
+	height: 34px;
+	padding: 0 10px;
+	border: 1px solid var(--etv2-border);
+	border-radius: var(--etv2-radius-ctl);
+	font-size: 13px;
+	font-family: inherit;
+	background: var(--etv2-surface);
+	color: var(--etv2-ink);
+}
+.etv2-inv-filters input { width: 220px; }
+.etv2-inv-content { padding: 4px 18px 18px; overflow-y: auto; min-height: 0; }
+.etv2-inv-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.etv2-inv-table-card { overflow: auto; }
+.etv2-inv-table-wrap { overflow-x: auto; }
+.etv2-inv-table { min-width: 780px; }
+.etv2-inv-table td { vertical-align: middle; }
+.etv2-inv-meta { font-size: 11px; color: var(--etv2-ink-soft); margin-top: 2px; }
+.etv2-inv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.etv2-inv-actions .etv2-btn { font-size: 11px; padding: 4px 9px; }
+.etv2-inv-actions .etv2-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ---- Tabs (POS Invoice / Sales Invoice) ---- */
+.etv2-inv-tabs { display: flex; gap: 4px; padding: 0 18px; border-bottom: 1px solid var(--etv2-border); }
+.etv2-inv-tabs .etv2-tab {
+	padding: 9px 18px;
+	border: none;
+	background: transparent;
+	color: var(--etv2-ink-soft);
+	font-size: 14px;
+	font-family: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	border-bottom: 3px solid transparent;
+	margin-bottom: -1px;
+}
+.etv2-inv-tabs .etv2-tab:hover { color: var(--etv2-ink); }
+.etv2-inv-tabs .etv2-tab-active {
+	color: var(--etv2-green);
+	border-bottom-color: var(--etv2-green);
+}
