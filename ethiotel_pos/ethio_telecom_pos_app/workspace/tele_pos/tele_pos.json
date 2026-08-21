@@ -105,7 +105,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "POS",
-   "link_count": 3,
+   "link_count": 4,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -139,9 +139,19 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "POS Opening Entry",
+   "link_count": 0,
+   "link_to": "POS Opening Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-21 10:16:30.177295",
+ "modified": "2026-08-21 16:16:54.850436",
  "modified_by": "Administrator",
  "module": "Ethio Telecom POS App",
  "name": "Tele POS",

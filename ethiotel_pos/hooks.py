@@ -191,14 +191,14 @@ fixtures = [
                     "POS Invoice-posa_return_valid_upto",
                     "Sales Invoice-posa_return_valid_upto",
                     "User-posa_pos_pin",
+                    "Mode of Payment-custom_mor_mode",
+                    "POS Profile-posa_allow_multi_currency",
+                    "POS Profile-posa_decimal_precision",
                 ),
             ]
         ],
     },
-    {
-        "doctype": "Role",
-        "filters": [["name", "in", ("POS Awesome Supervisor",)]],
-    },
+  
     {
         "doctype": "Property Setter",
         "filters": [
@@ -211,19 +211,6 @@ fixtures = [
                     "Sales Invoice Reference-sales_invoice-reqd",
                     "Sales Invoice-update_outstanding_for_self-default",
                 ),
-            ]
-        ],
-    },
-    {
-        "doctype": "Custom Field",
-        "filters": [
-            [
-                "name",
-                "in",
-                [
-                    "POS Profile-posa_allow_multi_currency",
-                    "POS Profile-posa_decimal_precision",
-                ],
             ]
         ],
     },
