@@ -141,6 +141,41 @@ body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .layout-main-section {
    ===================================================================== */
 .etv2-bottomnav {
 	display: none;
+	grid-area: bottomnav;
+	align-items: stretch;
+	gap: 2px;
+	padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+	background: var(--etv2-surface);
+	border-top: 1px solid var(--etv2-border);
+	overflow-x: auto;
+	overflow-y: hidden;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
+}
+.etv2-bottomnav::-webkit-scrollbar { display: none; }
+.etv2-bottomnav-item {
+	flex: 0 0 auto;
+	min-width: 58px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	padding: 5px 8px;
+	border: none;
+	background: transparent;
+	color: var(--etv2-ink-faint);
+	font-size: 10.5px;
+	font-weight: 600;
+	line-height: 1;
+	border-radius: 8px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+.etv2-bottomnav-item svg { flex-shrink: 0; }
+.etv2-bottomnav-item.active {
+	color: var(--etv2-green);
+	background: var(--etv2-green-soft);
 }
 
 /* =====================================================================
@@ -149,3 +184,19 @@ body[data-route="ethiotel-pos-v2"] #page-ethiotel-pos-v2 .layout-main-section {
 @keyframes etv2-spin { to { transform: rotate(360deg); } }
 @keyframes etv2-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes etv2-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* =====================================================================
+   MOBILE — bottom nav becomes the primary navigation
+   ===================================================================== */
+@media (max-width: 1023px) {
+	.etv2-shell {
+		grid-template-rows: var(--etv2-topbar-h) minmax(0, 1fr) auto auto;
+		grid-template-areas:
+			"topbar  topbar"
+			"sidebar workspace"
+			"status  status"
+			"bottomnav bottomnav";
+	}
+	.etv2-bottomnav { display: flex; }
+	.etv2-statusbar { padding: 0 10px; }
+}

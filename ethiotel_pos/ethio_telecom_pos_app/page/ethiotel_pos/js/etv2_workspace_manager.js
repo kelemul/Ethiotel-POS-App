@@ -1,9 +1,4 @@
-// =====================================================================
-// PHASE 4 — WORKSPACE MANAGER
-// Registry of workspaces. Each one is instantiated lazily on first use
-// and cached, so the shell never leaves the page — only the active
-// workspace panel changes.
-// =====================================================================
+
 erpnext.POSV2 = erpnext.POSV2 || {};
 
 erpnext.POSV2.WorkspaceManager = class {

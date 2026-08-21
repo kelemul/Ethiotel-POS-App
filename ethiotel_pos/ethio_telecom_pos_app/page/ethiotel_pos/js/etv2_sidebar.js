@@ -18,8 +18,8 @@ erpnext.POSV2.Sidebar = class {
 }
 
 	bind() {
-		// nav buttons (both sidebar + bottom nav)
-		this.shell.$shell.on("click", ".etv2-nav-item", (e) => {
+		// nav buttons (sidebar + mobile bottom nav)
+		this.shell.$shell.on("click", ".etv2-nav-item, .etv2-bottomnav-item", (e) => {
 			const name = $(e.currentTarget).attr("data-ws");
 			this.shell.workspaces.show(name);
 			this.close_drawer();
@@ -79,8 +79,8 @@ $(document).on("fullscreenchange", () => this.sync_fullscreen_label());
 
 	// highlight the active nav item (sidebar + bottom nav)
 	set_active(name) {
-		this.$layout.find(".etv2-nav-item").removeClass("active");
-		this.$layout.find(`.etv2-nav-item[data-ws="${name}"]`).addClass("active");
+		this.$layout.find(".etv2-nav-item, .etv2-bottomnav-item").removeClass("active");
+		this.$layout.find(`.etv2-nav-item[data-ws="${name}"], .etv2-bottomnav-item[data-ws="${name}"]`).addClass("active");
 	}
 
 toggle_menu(selector) {
@@ -114,7 +114,8 @@ handle_action(action) {
 			break;
 		}
 		case "send_to_mor":
-			frappe.show_alert({ message: __("Send to MoR is coming soon."), indicator: "blue" });
+			this.shell.workspaces.show("mor");
+			// frappe.show_alert({ message: __("Send to MoR is coming soon."), indicator: "blue" });
 			break;
 	}
 }

@@ -291,48 +291,98 @@ erpnext.POSV2.MoRWorkspace = class {
 					frappe.msgprint(__("Unable to load invoice details."));
 					return;
 				}
+				const irn = d.custom_irn || d.custom_mor_irn || "";
+				const is_walk_in = d.customer === MOR_WALK_IN;
+				const status = (d.custom_eims_status || "Not Submitted").trim();
+
 				const items = (d.items || []).map((it) => `
 					<tr>
-						<td>${frappe.utils.escape_html(it.item_code)}</td>
-						<td>${frappe.utils.escape_html(it.item_name || "")}</td>
-						<td class="etv2-right">${it.qty}</td>
-						<td class="etv2-right">${format_currency(it.rate, d.currency)}</td>
-						<td class="etv2-right">${format_currency(it.amount, d.currency)}</td>
+						<td class="etv2-mor-item-code" data-label="${__("Code")}">${frappe.utils.escape_html(it.item_code)}</td>
+						<td data-label="${__("Item")}">${frappe.utils.escape_html(it.item_name || "")}</td>
+						<td class="etv2-right etv2-mor-num" data-label="${__("Qty")}">${it.qty} ${frappe.utils.escape_html(it.uom || "")}</td>
+						<td class="etv2-right etv2-mor-num" data-label="${__("Rate")}">${format_currency(it.rate, d.currency)}</td>
+						<td class="etv2-right etv2-mor-num etv2-mor-amt" data-label="${__("Amount")}">${format_currency(it.amount, d.currency)}</td>
 					</tr>`).join("");
 				const taxes = (d.taxes || []).map((t) => `
 					<tr>
-						<td colspan="3">${frappe.utils.escape_html(t.description || t.account_head || "")}</td>
-						<td class="etv2-right">${t.rate}%</td>
-						<td class="etv2-right">${format_currency(t.tax_amount, d.currency)}</td>
+						<td colspan="2" data-label="${__("Tax")}">${frappe.utils.escape_html(t.description || t.account_head || "")}</td>
+						<td class="etv2-right etv2-mor-num" data-label="${__("Rate")}">${t.rate}%</td>
+						<td class="etv2-right etv2-mor-num etv2-mor-amt" data-label="${__("Amount")}">${format_currency(t.tax_amount, d.currency)}</td>
 					</tr>`).join("");
+
 				const html = `
 					<div class="etv2-mor-detail">
-						<div class="etv2-mor-detail-grid">
-							<div><label>${__("Invoice")}</label><span>${frappe.utils.escape_html(d.name)}</span></div>
-							<div><label>${__("Status")}</label><span>${__(d.custom_eims_status || "Not Submitted")}</span></div>
-							<div><label>${__("MoR Doc #")}</label><span>${d.custom_document_number || "—"}</span></div>
-							<div><label>${__("IRN")}</label><span>${d.custom_irn || d.custom_mor_irn || "—"}</span></div>
-							<div><label>${__("Customer")}</label><span>${frappe.utils.escape_html(d.customer_name || d.customer || "")}</span></div>
-							<div><label>${__("Date")}</label><span>${frappe.datetime.str_to_user(d.posting_date)}</span></div>
-							<div><label>${__("Tax Template")}</label><span>${frappe.utils.escape_html(d.taxes_and_charges || "—")}</span></div>
+						<div class="etv2-mor-dx-head">
+							<div class="etv2-mor-dx-title">
+								<span class="etv2-mor-dx-name">${frappe.utils.escape_html(d.name)}</span>
+								${this.status_badge(status)}
+							</div>
+							<div class="etv2-mor-dx-meta">
+								<span>${__("Doc #")}: <b>#${d.custom_document_number || "—"}</b></span>
+								<span>${frappe.datetime.str_to_user(d.posting_date)} ${d.posting_time || ""}</span>
+							</div>
 						</div>
-						<h4>${__("Items")}</h4>
-						<table class="etv2-mor-detail-table">
-							<thead><tr><th>${__("Item")}</th><th>${__("Name")}</th><th>${__("Qty")}</th><th>${__("Rate")}</th><th>${__("Amount")}</th></tr></thead>
-							<tbody>${items || `<tr><td colspan="5" class="etv2-text-muted">${__("No items")}</td></tr>`}</tbody>
-						</table>
-						${taxes ? `<h4>${__("Taxes")}</h4><table class="etv2-mor-detail-table"><tbody>${taxes}</tbody></table>` : ""}
-						<div class="etv2-mor-detail-totals">
-							<div><label>${__("Net Total")}</label><span>${format_currency(d.net_total, d.currency)}</span></div>
-							<div><label>${__("Total Tax")}</label><span>${format_currency(d.total_taxes_and_charges, d.currency)}</span></div>
-							<div><label>${__("Grand Total")}</label><span>${format_currency(d.grand_total, d.currency)}</span></div>
+
+						<div class="etv2-mor-dx-grid">
+							<div class="etv2-mor-dx-cell"><label>${__("Customer")}</label><span>${is_walk_in ? `<i class="etv2-text-muted">${__("Walk-In Customer")}</i>` : frappe.utils.escape_html(d.customer_name || d.customer || "")}</span></div>
+							<div class="etv2-mor-dx-cell"><label>${__("Cashier")}</label><span>${frappe.utils.escape_html(d.owner || "")}</span></div>
+							<div class="etv2-mor-dx-cell"><label>${__("Price List")}</label><span>${frappe.utils.escape_html(d.selling_price_list || "—")}</span></div>
+							<div class="etv2-mor-dx-cell"><label>${__("Tax Template")}</label><span>${frappe.utils.escape_html(d.taxes_and_charges || "—")}</span></div>
+							<div class="etv2-mor-dx-cell etv2-mor-dx-irn">
+								<label>${__("IRN")}</label>
+								<span title="${frappe.utils.escape_html(irn)}">${irn ? irn.slice(0, 22) + (irn.length > 22 ? "…" : "") : "—"}</span>
+								${irn ? `<button type="button" class="etv2-btn etv2-mor-copy-irn" data-irn="${frappe.utils.escape_html(irn)}">${__("Copy")}</button>` : ""}
+							</div>
 						</div>
+
+						<div class="etv2-mor-dx-section">
+							<h4>${__("Items")} <span class="etv2-mor-dx-count">${(d.items || []).length}</span></h4>
+							<table class="etv2-mor-table etv2-mor-detail-table">
+								<thead><tr><th>${__("Code")}</th><th>${__("Item")}</th><th class="etv2-right">${__("Qty")}</th><th class="etv2-right">${__("Rate")}</th><th class="etv2-right">${__("Amount")}</th></tr></thead>
+								<tbody>${items || `<tr><td colspan="5" class="etv2-text-muted">${__("No items")}</td></tr>`}</tbody>
+							</table>
+						</div>
+
+						<details class="etv2-mor-dx-taxes"${taxes ? "" : " hidden"}>
+							<summary>${__("Taxes")} <span class="etv2-mor-dx-count">${(d.taxes || []).length}</span></summary>
+							<table class="etv2-mor-table etv2-mor-detail-table"><tbody>${taxes}</tbody></table>
+						</details>
+
+						<div class="etv2-mor-dx-totals">
+							<div class="etv2-mor-dx-total"><label>${__("Net Total")}</label><span>${format_currency(d.net_total, d.currency)}</span></div>
+							<div class="etv2-mor-dx-total"><label>${__("Discount")}</label><span>-${format_currency(d.discount_amount || 0, d.currency)}</span></div>
+							<div class="etv2-mor-dx-total"><label>${__("Total Tax")}</label><span>${format_currency(d.total_taxes_and_charges, d.currency)}</span></div>
+							<div class="etv2-mor-dx-total is-grand"><label>${__("Grand Total")}</label><span>${format_currency(d.grand_total, d.currency)}</span></div>
+						</div>
+
+						${status === "Registered" || status === "Transmitted" ? `
+						<div class="etv2-mor-dx-actions">
+							<button type="button" class="etv2-btn etv2-btn-primary etv2-mor-dx-light" data-invoice="${d.name}">${__("Light Receipt")}</button>
+							${!is_walk_in ? `<button type="button" class="etv2-btn etv2-mor-dx-detailed" data-invoice="${d.name}">${__("Detailed Receipt")}</button>` : ""}
+							<button type="button" class="etv2-btn etv2-mor-dx-verify" data-invoice="${d.name}">${__("Verify")}</button>
+						</div>` : ""}
 					</div>`;
+
 				const dd = new frappe.ui.Dialog({
-					title: __("MoR Invoice Details") + " — " + d.name,
+					title: __("MoR Invoice Details"),
 					size: "large",
 				});
 				dd.$body.html(html);
+				dd.$body.find(".etv2-mor-copy-irn").on("click", (e) => {
+					e.stopPropagation();
+					const val = $(e.currentTarget).attr("data-irn");
+					if (navigator.clipboard && navigator.clipboard.writeText) {
+						navigator.clipboard.writeText(val).then(
+							() => frappe.show_alert({ message: __("IRN copied."), indicator: "green" }),
+							() => frappe.show_alert({ message: __("Could not copy IRN."), indicator: "red" })
+						);
+					} else {
+						frappe.show_alert({ message: val, indicator: "blue" });
+					}
+				});
+				dd.$body.find(".etv2-mor-dx-light").on("click", () => { dd.hide(); this.light_receipt(d.name); });
+				dd.$body.find(".etv2-mor-dx-detailed").on("click", () => { dd.hide(); this.detailed_receipt(d.name); });
+				dd.$body.find(".etv2-mor-dx-verify").on("click", () => { dd.hide(); this.verify(d.name); });
 				dd.show();
 			},
 		});

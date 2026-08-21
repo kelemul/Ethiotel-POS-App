@@ -106,3 +106,138 @@
 	padding: 4px 10px;
 	font-size: 12px;
 }
+
+/* =====================================================================
+   INVOICE DETAILS DIALOG — responsive + interactive
+   ===================================================================== */
+.etv2-mor-detail { font-size: 13px; }
+.etv2-mor-dx-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+	padding-bottom: 8px;
+	border-bottom: 1.5px solid var(--etv2-border);
+	margin-bottom: 10px;
+}
+.etv2-mor-dx-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.etv2-mor-dx-name { font-size: 15px; font-weight: 800; color: var(--etv2-ink); word-break: break-all; }
+.etv2-mor-dx-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--etv2-ink-soft); }
+
+.etv2-mor-dx-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 8px;
+	margin-bottom: 12px;
+}
+.etv2-mor-dx-cell {
+	background: var(--etv2-surface);
+	border: 1px solid var(--etv2-border);
+	border-radius: var(--etv2-radius-ctl);
+	padding: 7px 10px;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.etv2-mor-dx-cell label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--etv2-ink-faint); font-weight: 700; }
+.etv2-mor-dx-cell span { font-weight: 600; color: var(--etv2-ink); word-break: break-word; }
+.etv2-mor-dx-irn { flex-direction: row; align-items: center; gap: 8px; grid-column: span 2; }
+.etv2-mor-dx-irn label { white-space: nowrap; }
+.etv2-mor-dx-irn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: 12px; }
+.etv2-mor-copy-irn { padding: 3px 9px !important; font-size: 11px !important; flex-shrink: 0; }
+.etv2-mor-copy-irn:hover { border-color: var(--etv2-green); color: var(--etv2-green); }
+
+.etv2-mor-dx-section h4 { margin: 0 0 6px; font-size: 13px; color: var(--etv2-ink); }
+.etv2-mor-dx-count {
+	display: inline-block;
+	min-width: 18px;
+	text-align: center;
+	background: var(--etv2-green-soft);
+	color: var(--etv2-green);
+	font-size: 11px;
+	font-weight: 800;
+	border-radius: 9px;
+	padding: 1px 6px;
+	margin-left: 4px;
+}
+
+.etv2-mor-detail-table td { padding: 5px 8px; font-size: 12.5px; }
+.etv2-mor-item-code { color: var(--etv2-ink-soft); font-size: 11.5px; }
+.etv2-mor-amt { font-weight: 600; }
+
+.etv2-mor-dx-taxes { margin: 10px 0; border: 1px solid var(--etv2-border); border-radius: var(--etv2-radius-ctl); background: var(--etv2-surface); }
+.etv2-mor-dx-taxes summary {
+	cursor: pointer;
+	padding: 8px 12px;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--etv2-ink);
+	user-select: none;
+	list-style: none;
+	display: flex;
+	align-items: center;
+}
+.etv2-mor-dx-taxes summary::before { content: "▸"; margin-right: 8px; transition: transform .15s ease; }
+.etv2-mor-dx-taxes[open] summary::before { transform: rotate(90deg); }
+.etv2-mor-dx-taxes[open] summary { border-bottom: 1px solid var(--etv2-border); }
+.etv2-mor-dx-taxes table { margin: 0 0 6px; width: calc(100% - 20px); margin-left: 10px; }
+
+.etv2-mor-dx-totals {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+}
+.etv2-mor-dx-total {
+	border: 1px dashed var(--etv2-border);
+	border-radius: var(--etv2-radius-ctl);
+	padding: 7px 10px;
+	text-align: right;
+}
+.etv2-mor-dx-total label { display: block; font-size: 11px; color: var(--etv2-ink-faint); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.etv2-mor-dx-total span { font-weight: 700; color: var(--etv2-ink); font-variant-numeric: tabular-nums; }
+.etv2-mor-dx-total.is-grand { background: var(--etv2-green-soft); border-style: solid; border-color: var(--etv2-green); }
+.etv2-mor-dx-total.is-grand span { font-size: 14px; font-weight: 800; }
+
+.etv2-mor-dx-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 14px;
+	padding-top: 10px;
+	border-top: 1px solid var(--etv2-border);
+}
+
+/* ---------- narrow screens: items become stacked cards ---------- */
+@media (max-width: 640px) {
+	.etv2-mor-dx-irn { grid-column: 1 / -1; }
+	.etv2-mor-detail-table thead { display: none; }
+	.etv2-mor-detail-table tr {
+		display: block;
+		border: 1px solid var(--etv2-border);
+		border-radius: 8px;
+		margin-bottom: 8px;
+		padding: 6px 10px;
+		background: var(--etv2-surface);
+	}
+	.etv2-mor-detail-table td {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 12px;
+		border-bottom: none;
+		padding: 3px 0;
+		text-align: right;
+	}
+	.etv2-mor-detail-table td::before {
+		content: attr(data-label);
+		color: var(--etv2-ink-faint);
+		font-weight: 700;
+		font-size: 11px;
+		text-transform: uppercase;
+		text-align: left;
+		flex-shrink: 0;
+	}
+}

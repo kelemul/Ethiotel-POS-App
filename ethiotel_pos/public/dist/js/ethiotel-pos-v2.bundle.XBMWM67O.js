@@ -37,10 +37,10 @@
 				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
 				<span>${__("Print Last Invoice")}</span>
 			</div>
-			<div class="fk-menu-item fk-menu-item-disabled" data-action="send_to_mor">
+			<div class="fk-menu-item" data-action="send_to_mor">
 				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-				<span>${__("Send to MoR")}</span>
-				<span class="fk-menu-badge">${__("Soon")}</span>
+				<span>${__("MoR Tasks")}</span>
+				<span class="fk-menu-badge">${__("!!")}</span>
 			</div>
 		</div>
 	</div>
@@ -88,6 +88,7 @@
 					</span>
 					<span class="etv2-nav-label">Sale</span>
 				</button>
+				
 				<button class="etv2-nav-item etv2-nav-held" data-ws="held">
 					<span class="etv2-nav-icon">
 						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
@@ -120,7 +121,9 @@
 				</button>
 				<button class="etv2-nav-item etv2-nav-mor" data-ws="mor">
 					<span class="etv2-nav-icon">
-						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.17L4 19.17V4z"></path><polyline points="8 8 16 8 16 10 8 10 8 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line></svg>
+						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M4 4h16v12H5.17L4 19.17V4z"></path><polyline points="8 8 16 8 16 10 8 10 8 8">
+						</polyline><line x1="8" y1="13" x2="16" y2="13"></line></svg>
 					</span>
 					<span class="etv2-nav-label">MoR Invoices</span>
 				</button>
@@ -158,6 +161,10 @@
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
 			<span>Sale</span>
 		</button>
+		<button class="etv2-bottomnav-item etv2-nav-checkin" data-ws="checkin">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><polyline points="9 16 11 18 15 14"></polyline></svg>
+			<span>Check-In</span>
+		</button>
 		<button class="etv2-bottomnav-item etv2-nav-held" data-ws="held">
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
 			<span>Held</span>
@@ -170,9 +177,21 @@
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
 			<span>Customers</span>
 		</button>
+		<button class="etv2-bottomnav-item etv2-nav-returns" data-ws="returns">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+			<span>Returns</span>
+		</button>
 		<button class="etv2-bottomnav-item etv2-nav-reports" data-ws="reports">
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
 			<span>Reports</span>
+		</button>
+		<button class="etv2-bottomnav-item etv2-nav-mor" data-ws="mor">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.17L4 19.17V4z"></path><polyline points="8 8 16 8 16 10 8 10 8 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line></svg>
+			<span>MoR</span>
+		</button>
+		<button class="etv2-bottomnav-item etv2-nav-settings" data-ws="settings">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+			<span>Settings</span>
 		</button>
 	</nav>
 </div>
@@ -361,7 +380,7 @@
       this.bind();
     }
     bind() {
-      this.shell.$shell.on("click", ".etv2-nav-item", (e) => {
+      this.shell.$shell.on("click", ".etv2-nav-item, .etv2-bottomnav-item", (e) => {
         const name = $(e.currentTarget).attr("data-ws");
         this.shell.workspaces.show(name);
         this.close_drawer();
@@ -407,8 +426,8 @@
       this.$layout.removeClass("etv2-drawer-open");
     }
     set_active(name) {
-      this.$layout.find(".etv2-nav-item").removeClass("active");
-      this.$layout.find(`.etv2-nav-item[data-ws="${name}"]`).addClass("active");
+      this.$layout.find(".etv2-nav-item, .etv2-bottomnav-item").removeClass("active");
+      this.$layout.find(`.etv2-nav-item[data-ws="${name}"], .etv2-bottomnav-item[data-ws="${name}"]`).addClass("active");
     }
     toggle_menu(selector) {
       const $menu = this.shell.$shell.find(selector);
@@ -438,7 +457,7 @@
           break;
         }
         case "send_to_mor":
-          frappe.show_alert({ message: __("Send to MoR is coming soon."), indicator: "blue" });
+          this.shell.workspaces.show("mor");
           break;
       }
     }
@@ -3336,48 +3355,104 @@
             frappe.msgprint(__("Unable to load invoice details."));
             return;
           }
+          const irn = d.custom_irn || d.custom_mor_irn || "";
+          const is_walk_in = d.customer === MOR_WALK_IN;
+          const status = (d.custom_eims_status || "Not Submitted").trim();
           const items = (d.items || []).map((it) => `
 					<tr>
-						<td>${frappe.utils.escape_html(it.item_code)}</td>
-						<td>${frappe.utils.escape_html(it.item_name || "")}</td>
-						<td class="etv2-right">${it.qty}</td>
-						<td class="etv2-right">${format_currency(it.rate, d.currency)}</td>
-						<td class="etv2-right">${format_currency(it.amount, d.currency)}</td>
+						<td class="etv2-mor-item-code" data-label="${__("Code")}">${frappe.utils.escape_html(it.item_code)}</td>
+						<td data-label="${__("Item")}">${frappe.utils.escape_html(it.item_name || "")}</td>
+						<td class="etv2-right etv2-mor-num" data-label="${__("Qty")}">${it.qty} ${frappe.utils.escape_html(it.uom || "")}</td>
+						<td class="etv2-right etv2-mor-num" data-label="${__("Rate")}">${format_currency(it.rate, d.currency)}</td>
+						<td class="etv2-right etv2-mor-num etv2-mor-amt" data-label="${__("Amount")}">${format_currency(it.amount, d.currency)}</td>
 					</tr>`).join("");
           const taxes = (d.taxes || []).map((t) => `
 					<tr>
-						<td colspan="3">${frappe.utils.escape_html(t.description || t.account_head || "")}</td>
-						<td class="etv2-right">${t.rate}%</td>
-						<td class="etv2-right">${format_currency(t.tax_amount, d.currency)}</td>
+						<td colspan="2" data-label="${__("Tax")}">${frappe.utils.escape_html(t.description || t.account_head || "")}</td>
+						<td class="etv2-right etv2-mor-num" data-label="${__("Rate")}">${t.rate}%</td>
+						<td class="etv2-right etv2-mor-num etv2-mor-amt" data-label="${__("Amount")}">${format_currency(t.tax_amount, d.currency)}</td>
 					</tr>`).join("");
           const html = `
 					<div class="etv2-mor-detail">
-						<div class="etv2-mor-detail-grid">
-							<div><label>${__("Invoice")}</label><span>${frappe.utils.escape_html(d.name)}</span></div>
-							<div><label>${__("Status")}</label><span>${__(d.custom_eims_status || "Not Submitted")}</span></div>
-							<div><label>${__("MoR Doc #")}</label><span>${d.custom_document_number || "\u2014"}</span></div>
-							<div><label>${__("IRN")}</label><span>${d.custom_irn || d.custom_mor_irn || "\u2014"}</span></div>
-							<div><label>${__("Customer")}</label><span>${frappe.utils.escape_html(d.customer_name || d.customer || "")}</span></div>
-							<div><label>${__("Date")}</label><span>${frappe.datetime.str_to_user(d.posting_date)}</span></div>
-							<div><label>${__("Tax Template")}</label><span>${frappe.utils.escape_html(d.taxes_and_charges || "\u2014")}</span></div>
+						<div class="etv2-mor-dx-head">
+							<div class="etv2-mor-dx-title">
+								<span class="etv2-mor-dx-name">${frappe.utils.escape_html(d.name)}</span>
+								${this.status_badge(status)}
+							</div>
+							<div class="etv2-mor-dx-meta">
+								<span>${__("Doc #")}: <b>#${d.custom_document_number || "\u2014"}</b></span>
+								<span>${frappe.datetime.str_to_user(d.posting_date)} ${d.posting_time || ""}</span>
+							</div>
 						</div>
-						<h4>${__("Items")}</h4>
-						<table class="etv2-mor-detail-table">
-							<thead><tr><th>${__("Item")}</th><th>${__("Name")}</th><th>${__("Qty")}</th><th>${__("Rate")}</th><th>${__("Amount")}</th></tr></thead>
-							<tbody>${items || `<tr><td colspan="5" class="etv2-text-muted">${__("No items")}</td></tr>`}</tbody>
-						</table>
-						${taxes ? `<h4>${__("Taxes")}</h4><table class="etv2-mor-detail-table"><tbody>${taxes}</tbody></table>` : ""}
-						<div class="etv2-mor-detail-totals">
-							<div><label>${__("Net Total")}</label><span>${format_currency(d.net_total, d.currency)}</span></div>
-							<div><label>${__("Total Tax")}</label><span>${format_currency(d.total_taxes_and_charges, d.currency)}</span></div>
-							<div><label>${__("Grand Total")}</label><span>${format_currency(d.grand_total, d.currency)}</span></div>
+
+						<div class="etv2-mor-dx-grid">
+							<div class="etv2-mor-dx-cell"><label>${__("Customer")}</label><span>${is_walk_in ? `<i class="etv2-text-muted">${__("Walk-In Customer")}</i>` : frappe.utils.escape_html(d.customer_name || d.customer || "")}</span></div>
+							<div class="etv2-mor-dx-cell"><label>${__("Cashier")}</label><span>${frappe.utils.escape_html(d.owner || "")}</span></div>
+							<div class="etv2-mor-dx-cell"><label>${__("Price List")}</label><span>${frappe.utils.escape_html(d.selling_price_list || "\u2014")}</span></div>
+							<div class="etv2-mor-dx-cell"><label>${__("Tax Template")}</label><span>${frappe.utils.escape_html(d.taxes_and_charges || "\u2014")}</span></div>
+							<div class="etv2-mor-dx-cell etv2-mor-dx-irn">
+								<label>${__("IRN")}</label>
+								<span title="${frappe.utils.escape_html(irn)}">${irn ? irn.slice(0, 22) + (irn.length > 22 ? "\u2026" : "") : "\u2014"}</span>
+								${irn ? `<button type="button" class="etv2-btn etv2-mor-copy-irn" data-irn="${frappe.utils.escape_html(irn)}">${__("Copy")}</button>` : ""}
+							</div>
 						</div>
+
+						<div class="etv2-mor-dx-section">
+							<h4>${__("Items")} <span class="etv2-mor-dx-count">${(d.items || []).length}</span></h4>
+							<table class="etv2-mor-table etv2-mor-detail-table">
+								<thead><tr><th>${__("Code")}</th><th>${__("Item")}</th><th class="etv2-right">${__("Qty")}</th><th class="etv2-right">${__("Rate")}</th><th class="etv2-right">${__("Amount")}</th></tr></thead>
+								<tbody>${items || `<tr><td colspan="5" class="etv2-text-muted">${__("No items")}</td></tr>`}</tbody>
+							</table>
+						</div>
+
+						<details class="etv2-mor-dx-taxes"${taxes ? "" : " hidden"}>
+							<summary>${__("Taxes")} <span class="etv2-mor-dx-count">${(d.taxes || []).length}</span></summary>
+							<table class="etv2-mor-table etv2-mor-detail-table"><tbody>${taxes}</tbody></table>
+						</details>
+
+						<div class="etv2-mor-dx-totals">
+							<div class="etv2-mor-dx-total"><label>${__("Net Total")}</label><span>${format_currency(d.net_total, d.currency)}</span></div>
+							<div class="etv2-mor-dx-total"><label>${__("Discount")}</label><span>-${format_currency(d.discount_amount || 0, d.currency)}</span></div>
+							<div class="etv2-mor-dx-total"><label>${__("Total Tax")}</label><span>${format_currency(d.total_taxes_and_charges, d.currency)}</span></div>
+							<div class="etv2-mor-dx-total is-grand"><label>${__("Grand Total")}</label><span>${format_currency(d.grand_total, d.currency)}</span></div>
+						</div>
+
+						${status === "Registered" || status === "Transmitted" ? `
+						<div class="etv2-mor-dx-actions">
+							<button type="button" class="etv2-btn etv2-btn-primary etv2-mor-dx-light" data-invoice="${d.name}">${__("Light Receipt")}</button>
+							${!is_walk_in ? `<button type="button" class="etv2-btn etv2-mor-dx-detailed" data-invoice="${d.name}">${__("Detailed Receipt")}</button>` : ""}
+							<button type="button" class="etv2-btn etv2-mor-dx-verify" data-invoice="${d.name}">${__("Verify")}</button>
+						</div>` : ""}
 					</div>`;
           const dd = new frappe.ui.Dialog({
-            title: __("MoR Invoice Details") + " \u2014 " + d.name,
+            title: __("MoR Invoice Details"),
             size: "large"
           });
           dd.$body.html(html);
+          dd.$body.find(".etv2-mor-copy-irn").on("click", (e) => {
+            e.stopPropagation();
+            const val = $(e.currentTarget).attr("data-irn");
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(val).then(
+                () => frappe.show_alert({ message: __("IRN copied."), indicator: "green" }),
+                () => frappe.show_alert({ message: __("Could not copy IRN."), indicator: "red" })
+              );
+            } else {
+              frappe.show_alert({ message: val, indicator: "blue" });
+            }
+          });
+          dd.$body.find(".etv2-mor-dx-light").on("click", () => {
+            dd.hide();
+            this.light_receipt(d.name);
+          });
+          dd.$body.find(".etv2-mor-dx-detailed").on("click", () => {
+            dd.hide();
+            this.detailed_receipt(d.name);
+          });
+          dd.$body.find(".etv2-mor-dx-verify").on("click", () => {
+            dd.hide();
+            this.verify(d.name);
+          });
           dd.show();
         }
       });
@@ -3507,4 +3582,4 @@
     }
   };
 })();
-//# sourceMappingURL=ethiotel-pos-v2.bundle.3N5KLNHJ.js.map
+//# sourceMappingURL=ethiotel-pos-v2.bundle.XBMWM67O.js.map

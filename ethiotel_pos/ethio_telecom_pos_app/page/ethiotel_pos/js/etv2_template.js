@@ -37,10 +37,10 @@ erpnext.POSV2.SHELL_TEMPLATE = `
 				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
 				<span>${__("Print Last Invoice")}</span>
 			</div>
-			<div class="fk-menu-item fk-menu-item-disabled" data-action="send_to_mor">
+			<div class="fk-menu-item" data-action="send_to_mor">
 				<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-				<span>${__("Send to MoR")}</span>
-				<span class="fk-menu-badge">${__("Soon")}</span>
+				<span>${__("MoR Tasks")}</span>
+				<span class="fk-menu-badge">${__("!!")}</span>
 			</div>
 		</div>
 	</div>
@@ -88,6 +88,7 @@ erpnext.POSV2.SHELL_TEMPLATE = `
 					</span>
 					<span class="etv2-nav-label">Sale</span>
 				</button>
+				
 				<button class="etv2-nav-item etv2-nav-held" data-ws="held">
 					<span class="etv2-nav-icon">
 						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
@@ -120,7 +121,9 @@ erpnext.POSV2.SHELL_TEMPLATE = `
 				</button>
 				<button class="etv2-nav-item etv2-nav-mor" data-ws="mor">
 					<span class="etv2-nav-icon">
-						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.17L4 19.17V4z"></path><polyline points="8 8 16 8 16 10 8 10 8 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line></svg>
+						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M4 4h16v12H5.17L4 19.17V4z"></path><polyline points="8 8 16 8 16 10 8 10 8 8">
+						</polyline><line x1="8" y1="13" x2="16" y2="13"></line></svg>
 					</span>
 					<span class="etv2-nav-label">MoR Invoices</span>
 				</button>
@@ -158,6 +161,10 @@ erpnext.POSV2.SHELL_TEMPLATE = `
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
 			<span>Sale</span>
 		</button>
+		<button class="etv2-bottomnav-item etv2-nav-checkin" data-ws="checkin">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><polyline points="9 16 11 18 15 14"></polyline></svg>
+			<span>Check-In</span>
+		</button>
 		<button class="etv2-bottomnav-item etv2-nav-held" data-ws="held">
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
 			<span>Held</span>
@@ -170,9 +177,21 @@ erpnext.POSV2.SHELL_TEMPLATE = `
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
 			<span>Customers</span>
 		</button>
+		<button class="etv2-bottomnav-item etv2-nav-returns" data-ws="returns">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+			<span>Returns</span>
+		</button>
 		<button class="etv2-bottomnav-item etv2-nav-reports" data-ws="reports">
 			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
 			<span>Reports</span>
+		</button>
+		<button class="etv2-bottomnav-item etv2-nav-mor" data-ws="mor">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.17L4 19.17V4z"></path><polyline points="8 8 16 8 16 10 8 10 8 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line></svg>
+			<span>MoR</span>
+		</button>
+		<button class="etv2-bottomnav-item etv2-nav-settings" data-ws="settings">
+			<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+			<span>Settings</span>
 		</button>
 	</nav>
 </div>
