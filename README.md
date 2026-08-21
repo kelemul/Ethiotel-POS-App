@@ -1,12 +1,12 @@
 # Ethio Telecom POS App
 
-A specialized Point of Sale application for **ethio telecom**, built on the Frappe Framework. This app acts as a wrapper for **ERPNext** and **POSAwesome** to provide a custom Ethio Telecom experience.
+A specialized Point of Sale application for **ethio telecom**, built on the Frappe Framework. This app acts as a wrapper for **ERPNext** and **Ethiotel_POS** to provide a custom Ethio Telecom experience.
 
 ---
 
 ### 🚀 Robust Installation Script
 
-Use this script to handle all dependencies (ERPNext, POSAwesome), build assets, and set up branding in one step. 
+Use this script to handle all dependencies (ERPNext, Ethiotel_POS), build assets, and set up branding in one step. 
 
 #### 1. Create the installer
 In your `frappe-bench` root folder, run:
@@ -50,25 +50,25 @@ fi
 echo "Installing ERPNext on $SITE..."
 bench --site $SITE install-app erpnext || fail "Failed to install ERPNext on $SITE."
 
-# 2. Handle POSAwesome with Re-creation Prompt
-echo "Step 2: Checking POSAwesome..."
-if [ -d "apps/posawesome" ]; then
-    read -p "POSAwesome already exists. Do you want to re-create it? (y/n): " confirm
+# 2. Handle Ethiotel_POS with Re-creation Prompt
+echo "Step 2: Checking Ethiotel_POS..."
+if [ -d "apps/ethiotel_pos" ]; then
+    read -p "Ethiotel_POS already exists. Do you want to re-create it? (y/n): " confirm
     if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]; then
-        echo "Removing existing POSAwesome..."
-        rm -rf apps/posawesome || fail "Could not remove apps/posawesome folder."
-        echo "Fetching fresh POSAwesome repository..."
-        bench get-app $REPO_POS || fail "Failed to fetch POSAwesome code."
+        echo "Removing existing Ethiotel_POS..."
+        rm -rf apps/ethiotel_pos || fail "Could not remove apps/ethiotel_pos folder."
+        echo "Fetching fresh Ethiotel_POS repository..."
+        bench get-app $REPO_POS || fail "Failed to fetch Ethiotel_POS code."
     else
-        echo "Keeping existing POSAwesome code."
+        echo "Keeping existing Ethiotel_POS code."
     fi
 else
-    echo "Fetching POSAwesome repository..."
-    bench get-app $REPO_POS || fail "Failed to fetch POSAwesome code."
+    echo "Fetching Ethiotel_POS repository..."
+    bench get-app $REPO_POS || fail "Failed to fetch Ethiotel_POS code."
 fi
 
-echo "Installing POSAwesome on $SITE..."
-bench --site $SITE install-app posawesome || fail "Failed to install POSAwesome on $SITE."
+echo "Installing Ethiotel_POS on $SITE..."
+bench --site $SITE install-app ethiotel_pos || fail "Failed to install Ethiotel_POS on $SITE."
 
 # 3. Handle Ethio Telecom Wrapper
 echo "Step 3: Installing Ethio Telecom POS Wrapper..."
@@ -76,8 +76,8 @@ bench --site $SITE install-app ethiotel_pos --force || fail "Failed to install e
 
 # 4. Build Assets (Crucial for Vue/CSS)
 echo "Step 4: Building Assets..."
-echo "Building POSAwesome..."
-bench build --app posawesome || fail "Failed to build POSAwesome assets."
+echo "Building Ethiotel_POS..."
+bench build --app ethiotel_pos || fail "Failed to build Ethiotel_POS assets."
 
 echo "Building Ethio Telecom POS..."
 bench build --app ethiotel_pos || fail "Failed to build ethiotel_pos assets."

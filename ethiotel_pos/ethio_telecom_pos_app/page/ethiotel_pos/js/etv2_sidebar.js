@@ -11,11 +11,9 @@ erpnext.POSV2.Sidebar = class {
 	this.$sidebar = shell.$sidebar;
 	this.$layout = shell.$shell;
 
-	this.locked = localStorage.getItem("ethiotel_pos.sidebar_locked") === "1";
 	const expanded = localStorage.getItem("ethiotel_pos.sidebar_expanded") === "1";
 	this.$layout.toggleClass("etv2-nav-expanded", expanded);
 
-	this.render_lock_state();
 	this.bind();
 }
 
@@ -46,8 +44,6 @@ erpnext.POSV2.Sidebar = class {
 	this.close_drawer();
 	this.close_all_menus();
 });
-		// lock toggle
-		this.shell.$shell.on("click", ".etv2-sidebar-lock", () => this.toggle_lock());
 		// action menu (return invoice / resync / print last / MoR)
 this.shell.$shell.on("click", ".fk-actions-trigger", (e) => {
 	e.stopPropagation();
@@ -79,19 +75,6 @@ $(document).on("fullscreenchange", () => this.sync_fullscreen_label());
 
 	close_drawer() {
 		this.$layout.removeClass("etv2-drawer-open");
-	}
-
-	toggle_lock() {
-		this.locked = !this.locked;
-		localStorage.setItem("ethiotel_pos.sidebar_locked", this.locked ? "1" : "0");
-		this.render_lock_state();
-	}
-
-	render_lock_state() {
-		const $lock = this.$sidebar.find(".etv2-sidebar-lock");
-		$lock.toggleClass("etv2-locked", this.locked);
-		$lock.attr("title", this.locked ? __("Unlock menu") : __("Lock menu"));
-		// this.$sidebar.find(".etv2-sidebar-lock-label").text(this.locked ? __("Menu locked") : __("Lock menu"));
 	}
 
 	// highlight the active nav item (sidebar + bottom nav)
@@ -131,7 +114,7 @@ handle_action(action) {
 			break;
 		}
 		case "send_to_mor":
-			this.shell.workspaces.show("invoices");
+			frappe.show_alert({ message: __("Send to MoR is coming soon."), indicator: "blue" });
 			break;
 	}
 }

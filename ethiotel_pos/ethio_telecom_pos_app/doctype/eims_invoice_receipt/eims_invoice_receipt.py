@@ -14,16 +14,22 @@ class EIMSInvoiceReceipt(Document):
         
         if self.mode_of_payment and self.mode_of_payment.upper() not in ["CASH", "ADVANCE", "CREDIT"]:
             frappe.throw(_("Invalid Mode of Payment. Must be one of: CASH, ADVANCE, CREDIT."))
+
     def before_save(self):
-        if self.eims_status == "Active" and not self.is_new():
-            existing_status = frappe.db.get_value("EIMS Invoice Receipt", self.name, "eims_status")
-            if existing_status == "Active":
-                frappe.throw(_("Authenticated MoR EIRMS receipts are immutable and cannot be altered."))\
-        # auto-increement receipt_counter
-        if self.receipt_counter == 0:
-            # get maximum receipt counter
-            max_counter = frappe.db.get_value("EIMS Invoice Receipt", None, "max(receipt_counter)", as_dict=1)
-            self.receipt_counter = max_counter.get("max(receipt_counter)") + 1 if max_counter else 1
+        # Receipt creation is now triggered only from the Sales Invoice /
+        # POS Invoice MoR task actions — the on-save auto-processing below is
+        # disabled (immutability guard + receipt_counter auto-increment moved
+        # into the explicit generation flow).
+        # if self.eims_status == "Active" and not self.is_new():
+        #     existing_status = frappe.db.get_value("EIMS Invoice Receipt", self.name, "eims_status")
+        #     if existing_status == "Active":
+        #         frappe.throw(_("Authenticated MoR EIRMS receipts are immutable and cannot be altered."))
+        # # auto-increement receipt_counter
+        # if self.receipt_counter == 0:
+        #     # get maximum receipt counter
+        #     max_counter = frappe.db.get_value("EIMS Invoice Receipt", None, "max(receipt_counter)", as_dict=1)
+        #     self.receipt_counter = max_counter.get("max(receipt_counter)") + 1 if max_counter else 1
+        pass
 
     def get_default_client_data(self, doc):
         """Helper to get the active default row from the child table"""
@@ -100,37 +106,40 @@ class EIMSInvoiceReceipt(Document):
 
             invoice_payload = []
             for item in self.invoices_covered:
+                # MoR rejects the receipt with NOT_ACCEPTABLE when numeric
+                # fields arrive as null — always send numbers.
                 invoice_payload.append({
                     "InvoiceIRN": item.invoice_irn,
-                    "PaymentCoverage": item.payment_coverage,
-                    "InvoicePaidAmount": float(item.invoice_paid_amount),
-                    "DiscountAmount": float(item.discount_amount) if item.discount_amount else None,
-                    "RemainingAmount": float(item.remaining_amount) if item.remaining_amount else None,
-                    "TotalAmount": float(item.total_amount)
+                    "PaymentCoverage": item.payment_coverage or "FULL",
+                    # Amounts must match the registered invoice totals
+                    # exactly — do NOT round them here.
+                    "InvoicePaidAmount": float(item.invoice_paid_amount or 0.0),
+                    "DiscountAmount": float(item.discount_amount or 0.0),
+                    "RemainingAmount": float(item.remaining_amount or 0.0),
+                    "TotalAmount": float(item.total_amount or 0.0)
                 })
+
+            # ReceiptDate in the format MoR expects (ISO-8601 with
+            # milliseconds and timezone offset, e.g.
+            # 2026-08-21T10:00:00.123+03:00).
+            receipt_date_str = datetime.now().astimezone().isoformat(timespec="milliseconds")
 
             payload_data = json.dumps({
                 "ReceiptNumber": self.receipt_number,
                 "ReceiptType": self.receipt_type or "Sales Receipts",
                 "Reason": self.remark or "Payment for goods purchased",
-				"ReceiptDate": now_datetime().replace(microsecond=0).isoformat() + "Z",               
-    			"ReceiptCounter": str(self.receipt_counter),
-                "ManualReceiptNumber": str(self.receipt_counter),
+                "ReceiptDate": receipt_date_str,
+                "ReceiptCounter": self.receipt_counter,
                 "SourceSystemType": self.source_system_type,
                 "SourceSystemNumber": self.source_system_no,
                 "ReceiptCurrency": self.currency or "ETB",
-                "ExchangeRate": None,
-                "CollectedAmount": float(self.collected_amount),
+                "CollectedAmount": float(self.collected_amount or 0.0),
                 "SellerTIN": self.seller_tin,
                 "Invoices": invoice_payload,
                 "TransactionDetails": {
                     "ModeOfPayment": self.mode_of_payment.upper() if self.mode_of_payment and self.mode_of_payment.upper() in ["CASH","ADVANCE","CREDIT"] else "CASH",
-                    "ChequeNumber": getattr(self, "cheque_number", None),
-                    "CPONumber": getattr(self, "cpo_number", None),
-                    "DocumentNumber": None,
                     "CollectorName": self.collector_name or "Cashier",
                     "PaymentServiceProvider": self.payment_provider or "Bank",
-                    "AccountNumber": self.account_number,
                     "TransactionNumber": self.transaction_number
                 }
             })
@@ -146,8 +155,8 @@ class EIMSInvoiceReceipt(Document):
                 else:
                     self.eims_status = api_status or "Active"
 
-                self.eims_rrn = body.get("rrn")
-                self.qr_code_base64 = body.get("qr")
+                self.eims_rrn = body.get("rrn") or self.eims_rrn
+                self.qr_code_base64 = body.get("qr") or body.get("signedQR") or body.get("qrCode") or self.qr_code_base64
                 self.response_log = json.dumps(res_data, indent=4)
                 
                 self.save()
@@ -163,9 +172,11 @@ class EIMSInvoiceReceipt(Document):
                 self.response_log = json.dumps(res_data, indent=4)
                 self.save()
                 frappe.db.commit()
+                detail = json.dumps(res_data, indent=2)
                 return {
                     "success": False,
-                    "message": res_data.get("message", "Gateway rejection.")
+                    "message": f"Error {response.status_code}: {detail}",
+                    "html": None
                 }
 
         except Exception as e:
@@ -276,8 +287,14 @@ class EIMSInvoiceReceipt(Document):
             vat_amount = float(inv.get("vat_amount", 0.0) if is_dict else getattr(inv, "vat_amount", 0.0) or 0.0)
             receipt_counter = inv.get("receipt_counter") if is_dict else getattr(inv, "receipt_counter", receipt_counter)
             si_name = frappe.db.get_value("Sales Invoice", {"custom_irn": invoice_irn}, "name")
+            source_doctype = "Sales Invoice"
+            if not si_name:
+                # POS-first flow: the invoice was registered directly as a
+                # POS Invoice and never converted to a Sales Invoice.
+                si_name = frappe.db.get_value("POS Invoice", {"custom_irn": invoice_irn}, "name")
+                source_doctype = "POS Invoice"
             if si_name:
-                si_doc = frappe.get_doc("Sales Invoice", si_name)
+                si_doc = frappe.get_doc(source_doctype, si_name)
                 
                 # Extract missing customer metadata directly from source invoice
                 if not getattr(self, "party_tin", None):
@@ -294,9 +311,9 @@ class EIMSInvoiceReceipt(Document):
                 
                 # Gather totals exactly without reprocessing raw division formulas
                 if taxable_total == 0.0:
-                    taxable_total = float(getattr(si_doc, "taxable_amount", 0.0))
+                    taxable_total = float(getattr(si_doc, "taxable_amount", 0.0) or getattr(si_doc, "base_net_total", 0.0) or 0.0)
                 if vat_amount == 0.0:
-                    vat_amount = float(getattr(si_doc, "total_taxes_and_charges", 0.0))
+                    vat_amount = float(getattr(si_doc, "total_taxes_and_charges", 0.0) or 0.0)
                 
                 for item in si_doc.items:
                     item_desc = item.description or item.item_name or item.item_code

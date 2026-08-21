@@ -1,7 +1,7 @@
 {
  "charts": [],
- "content": "[{\"id\":\"cJigdSD9mh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tele POS</span>\",\"col\":12}},{\"id\":\"4D2sc3CbN3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tele POS App\",\"col\":3}},{\"id\":\"GHhQ3ILXlU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"EIRMS Settings\",\"col\":3}},{\"id\":\"t_9WzOG4kt\",\"type\":\"card\",\"data\":{\"card_name\":\"Ethiotel POS\",\"col\":4}},{\"id\":\"nVBkn7nfDw\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"-B_qEZqEA6\",\"type\":\"card\",\"data\":{\"card_name\":\"POS\",\"col\":4}},{\"id\":\"tsAHaUCd5l\",\"type\":\"card\",\"data\":{\"card_name\":\"Profile\",\"col\":4}},{\"id\":\"2-3HMkGou3\",\"type\":\"card\",\"data\":{\"card_name\":\"Shift\",\"col\":4}},{\"id\":\"posaCashMovementCard\",\"type\":\"card\",\"data\":{\"card_name\":\"Cash Movement\",\"col\":4}},{\"id\":\"GdPtnrazDS\",\"type\":\"card\",\"data\":{\"card_name\":\"Delivery Charges\",\"col\":4}},{\"id\":\"cABO53xhGv\",\"type\":\"card\",\"data\":{\"card_name\":\"Offers &amp; Coupons\",\"col\":4}},{\"id\":\"ky5kZTey04\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"nyw_47HbbH\",\"type\":\"card\",\"data\":{\"card_name\":\"MoR Tasks\",\"col\":4}}]",
- "creation": "2022-11-29 14:33:45.038200",
+ "content": "[{\"id\":\"cJigdSD9mh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tele POS</span>\",\"col\":12}},{\"id\":\"4D2sc3CbN3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tele POS App\",\"col\":3}},{\"id\":\"GHhQ3ILXlU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"EIRMS Settings\",\"col\":3}},{\"id\":\"nVBkn7nfDw\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Avo6EE538Q\",\"type\":\"card\",\"data\":{\"card_name\":\"POS\",\"col\":4}},{\"id\":\"Yyedt5hgvr\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"AHxV8LQ6Qd\",\"type\":\"card\",\"data\":{\"card_name\":\"MoR Tasks\",\"col\":4}}]",
+ "creation": "2026-08-19 11:53:04.353047",
  "custom_blocks": [],
  "docstatus": 0,
  "doctype": "Workspace",
@@ -21,9 +21,127 @@
    "link_type": "Page",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "X Report",
+   "link_count": 0,
+   "link_to": "X Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Z Report",
+   "link_count": 0,
+   "link_to": "Z Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Sales Invoice",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "MoR Tasks",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Invoice Registration",
+   "link_count": 0,
+   "link_to": "Invoice Registration",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "EIMS Invoice Verification",
+   "link_count": 0,
+   "link_to": "EIMS Invoice Verification",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "EIMS Invoice Receipt",
+   "link_count": 0,
+   "link_to": "EIMS Invoice Receipt",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "EIMS Invoice Cancellation",
+   "link_count": 0,
+   "link_to": "EIMS Invoice Cancellation",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "POS",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tele POS",
+   "link_count": 0,
+   "link_to": "ethiotel-pos",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Customer Details",
+   "link_count": 0,
+   "link_to": "Customer Details",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "POS Invoice",
+   "link_count": 0,
+   "link_to": "POS Invoice",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-18 14:01:19.441762",
+ "modified": "2026-08-21 10:16:30.177295",
  "modified_by": "Administrator",
  "module": "Ethio Telecom POS App",
  "name": "Tele POS",

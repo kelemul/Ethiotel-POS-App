@@ -8,7 +8,7 @@ import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_shift_dashboard.js
 import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_held_orders.js";
 import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_customers.js";
 import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_checkin.js";
-import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_invoices.js";
 import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_returns.js";
 import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_reports.js";
+import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_mor.js";
 import "../../ethio_telecom_pos_app/page/ethiotel_pos/js/etv2_settings.js";

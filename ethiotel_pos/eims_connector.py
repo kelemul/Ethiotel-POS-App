@@ -30,6 +30,52 @@ eims_logger = _get_eims_logger()
 
 EIMS_MIN_BULK_SIZE = 2
 
+WALK_IN_CUSTOMER = "Walk-In Customer"
+
+ID_TYPES = {"NID", "KID", "SID", "WID", "PST", "DLS", "MRS"}
+
+ID_TYPE_ALIASES = {
+    "NATIONAL ID": "NID",
+    "NATIONAL ID CARD": "NID",
+    "NATIONALID": "NID",
+    "KEBELE": "KID",
+    "KEBELE ID": "KID",
+    "KEBELE ID CARD": "KID",
+    "KEBELE CARD": "KID",
+    "KEDIDA": "KID",
+    "STUDENT ID": "SID",
+    "STUDENT": "SID",
+    "WORKER ID": "WID",
+    "WORKERS ID": "WID",
+    "PASSPORT": "PST",
+    "DRIVER LICENSE": "DLS",
+    "DRIVER'S LICENSE": "DLS",
+    "DRIVING LICENSE": "DLS",
+    "DRIVER LICENCE": "DLS",
+    "DRIVERS LICENCE": "DLS",
+    "MARRIAGE CERTIFICATE": "MRS",
+    "MARRIAGE CERT": "MRS",
+}
+
+MOR_PAYMENT_MODES = ("CASH", "ADVANCE", "CREDIT")
+
+
+def resolve_mor_payment_mode(mode_of_payment):
+    """Map a Mode of Payment onto one of MoR's accepted payment modes
+    (rule 7022: CASH / ADVANCE / CREDIT). An explicit classification on
+    the Mode of Payment (custom_mor_mode) wins; otherwise the mode name
+    itself is matched. Returns None when the mode cannot be resolved."""
+    if not mode_of_payment:
+        return None
+    configured = frappe.db.get_value("Mode of Payment", mode_of_payment, "custom_mor_mode")
+    if configured:
+        return str(configured).strip().upper()
+    name = str(mode_of_payment).strip().upper()
+    for mode in MOR_PAYMENT_MODES:
+        if mode in name:
+            return mode
+    return None
+
 
 def _add_if_present(target_dict, key, value):
     """Only add a key to the payload if value is not None / not an empty string.
@@ -200,22 +246,132 @@ class EIMSConnector:
         )
         if db_res:
             return db_res[0].get("custom_irn") or ""
+        db_res = frappe.db.sql(
+            """SELECT custom_mor_irn FROM `tabPOS Invoice`
+               WHERE custom_document_number = %s AND docstatus = 1 LIMIT 1""",
+            doc_num, as_dict=1
+        )
+        if db_res:
+            return db_res[0].get("custom_mor_irn") or ""
         return ""
 
-    def _get_max_document_number(self):
+    def _peek_next_document_number(self):
+        """Read-only peek at the next MoR document number: the highest of
+        last_document_number + 1 and every document number ever recorded on
+        a Sales Invoice or POS Invoice, plus one. This guarantees a fresh
+        submission never reuses a number that was already sent to MoR.
+        Does NOT reserve or persist anything. The caller must call
+        _commit_document_number() only after MoR confirms a successful
+        registration for that number."""
         row = frappe.db.sql(
-            """SELECT MAX(CAST(custom_document_number AS UNSIGNED))
-               FROM `tabSales Invoice`
-               WHERE custom_document_number IS NOT NULL AND custom_document_number != '' AND custom_eims_status IN ('Registered', 'Pending')""",
+            """SELECT value FROM `tabSingles`
+            WHERE doctype = 'EIMS Setting' AND field = 'last_document_number'"""
         )
-        doc_num =  int(self.settings.last_document_number)+1 if self.settings.last_document_number else 0
-        row_doc_num = int(row[0][0]) if row and row[0][0] else 0
-        return max(doc_num, row_doc_num)
+        last_num = int(row[0][0]) if row and row[0][0] else 0
+        max_si = frappe.db.sql(
+            """SELECT MAX(custom_document_number) FROM `tabSales Invoice`
+               WHERE custom_document_number IS NOT NULL AND custom_document_number > 0"""
+        )
+        max_pos = frappe.db.sql(
+            """SELECT MAX(custom_document_number) FROM `tabPOS Invoice`
+               WHERE custom_document_number IS NOT NULL AND custom_document_number > 0"""
+        )
+        max_used = max(
+            int(max_si[0][0] or 0) if max_si else 0,
+            int(max_pos[0][0] or 0) if max_pos else 0,
+        )
+        return max(last_num + 1, max_used + 1)
+
+    def _parse_expected_doc_num(self, response_text):
+        """Extract the MoR-expected next document number from a rule
+        validation error, e.g. 'Document number is not in correct sequence
+        expected : 107'. Returns None when the error carries no number."""
+        match = re.search(r"expected\s*:\s*(\d+)", response_text or "", re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        return None
+
+    def _commit_document_number(self, doc_num):
+        """Persist doc_num as the new EIMS Setting.last_document_number.
+        Called only after MoR confirms successful registration for that
+        number, so a failed/rejected/pending submission never burns a
+        document number."""
+        doc_num = int(doc_num)
+        exists = frappe.db.sql(
+            """SELECT 1 FROM `tabSingles`
+            WHERE doctype = 'EIMS Setting' AND field = 'last_document_number'"""
+        )
+        if exists:
+            frappe.db.sql(
+                """UPDATE `tabSingles` SET value = %s
+                WHERE doctype = 'EIMS Setting' AND field = 'last_document_number'""",
+                (doc_num,),
+            )
+        else:
+            frappe.db.sql(
+                """INSERT INTO `tabSingles` (doctype, field, value)
+                VALUES ('EIMS Setting', 'last_document_number', %s)""",
+                (doc_num,),
+            )
+        frappe.db.commit()
+        self.settings.last_document_number = doc_num
+    # def _get_max_document_number(self):
+    #     row = frappe.db.sql(
+    #         """SELECT MAX(CAST(custom_document_number AS UNSIGNED))
+    #            FROM `tabSales Invoice`
+    #            WHERE custom_document_number IS NOT NULL AND custom_document_number != '' AND custom_eims_status IN ('Registered', 'Pending')""",
+    #     )
+    #     doc_num =  int(self.settings.last_document_number)+1 if self.settings.last_document_number else 0
+    #     row_doc_num = int(row[0][0]) if row and row[0][0] else 0
+    #     return max(doc_num, row_doc_num)
+
+    # def _next_document_number(self):
+    #     """Atomically increment EIMS Setting.last_document_number by one and
+    #     return the new value. This is the per-submission MoR sequence number
+    #     (committed immediately so a failed submission still consumes a number).
+    #     Single doctypes are stored as key/value rows in `tabSingles`; both the
+    #     locked read and the write are raw SQL so no frappe single-value cache
+    #     can go stale."""
+    #     settings_name = "EIMS Setting"
+    #     row = frappe.db.sql(
+    #         """SELECT value FROM `tabSingles`
+    #            WHERE doctype = %s AND field = 'last_document_number'
+    #            FOR UPDATE""",
+    #         settings_name,
+    #     )
+    #     if row:
+    #         next_num = int(row[0][0] or 0) + 1
+    #         frappe.db.sql(
+    #             """UPDATE `tabSingles` SET value = %s
+    #                WHERE doctype = %s AND field = 'last_document_number'""",
+    #             (next_num, settings_name),
+    #         )
+    #     else:
+    #         next_num = 1
+    #         frappe.db.sql(
+    #             """INSERT INTO `tabSingles` (doctype, field, value)
+    #                VALUES (%s, 'last_document_number', '1')""",
+    #             settings_name,
+    #         )
+    #     frappe.db.commit()
+    #     return next_num
+
+    # def _document_number_for(self, invoice_doc):
+    #     """Reuse an invoice's existing MoR document number, otherwise consume
+    #     the next number from EIMS Setting (idempotent resends)."""
+    #     existing = invoice_doc.get("custom_document_number")
+    #     if existing:
+    #         try:
+    #             return int(existing)
+    #         except (TypeError, ValueError):
+    #             pass
+    #     return self._next_document_number()
 
     def build_invoice_payload(self, invoice_doc, override_doc_num=None, override_prev_irn=None):
         company = frappe.get_doc("Company", invoice_doc.company)
         company_link = f"/app/company/{company.name}"
 
+        is_walk_in = (invoice_doc.customer or "") == WALK_IN_CUSTOMER
         customer_type = frappe.db.get_value("Customer", invoice_doc.customer, "customer_type")
         transaction_type =""
         t_map = {
@@ -226,9 +382,12 @@ class EIMSConnector:
         }
         transaction_type = t_map.get(customer_type, "")
         if transaction_type == "":
-            frappe.throw(f"Customer Type in Customer Document is not supported: {customer_type}. Only Individual, Company, Government and Partnership are supported.")
+            if is_walk_in:
+                transaction_type = "B2C"
+            else:
+                frappe.throw(f"Customer Type in Customer Document is not supported: {customer_type}. Only Individual, Company, Government and Partnership are supported.")
 
-        if not frappe.db.exists("Customer Details", invoice_doc.customer):
+        if not is_walk_in and not frappe.db.exists("Customer Details", invoice_doc.customer):
             frappe.throw(
                 f"Missing Record: Please create a <b>Customer Details</b> document for Customer "
                 f"<b>{invoice_doc.customer}</b> before proceeding.",
@@ -236,8 +395,23 @@ class EIMSConnector:
             )
         customer = frappe.get_doc("Customer", invoice_doc.customer)
         customer_link = f"/app/customer/{customer.name}"
-        cust_details = frappe.get_doc("Customer Details", invoice_doc.customer)
-        cust_link = f"/app/customer-details/{cust_details.name}"
+        if is_walk_in:
+            # Walk-in sales have no registered buyer: the invoice keeps the
+            # walk-in name but the MoR submission is a minimal B2C with no
+            # TIN, no ID and no contact details.
+            cust_details = frappe._dict({
+                "name": WALK_IN_CUSTOMER,
+                "legal_name": None, "tin_number": "", "email": "",
+                "region": "", "city": "", "country": None, "zone": None,
+                "kebele": None, "woreda": None, "id_number": None,
+                "id_type": None, "phone": None, "sub_tin": None,
+                "trade_name": None, "sub_city": None, "house_number": None,
+                "locality": None,
+            })
+            cust_link = customer_link
+        else:
+            cust_details = frappe.get_doc("Customer Details", invoice_doc.customer)
+            cust_link = f"/app/customer-details/{cust_details.name}"
 
         # BuyerDetails.Tin — Conditional, required only if transaction is NOT B2C/G2C
         raw_tin = cust_details.tin_number or ""
@@ -276,7 +450,7 @@ class EIMSConnector:
                 f"Found: '{buyer_region}'",
                 title="EIMS Schema Error: Invalid Region Code"
             )
-        elif not buyer_region:
+        elif not buyer_region and not is_walk_in:
             frappe.throw(
                 f"Validation Error on <a href='{cust_link}'>Customer Details ({cust_details.name})</a>:<br><br>"
                 f"<b>Region</b> is required for EIMS submission.",
@@ -291,24 +465,36 @@ class EIMSConnector:
         seller_city = self._require(company.custom_city, "City", company.name, company_link)
         seller_house_number = company.custom_house_number  # Optional
 
-        buyer_city = self._require(cust_details.city, "City", cust_details.name, cust_link)
+        buyer_city = "" if is_walk_in else self._require(cust_details.city, "City", cust_details.name, cust_link)
         buyer_country = cust_details.country  # Optional
         buyer_zone = cust_details.zone  # Optional
         buyer_kebele = cust_details.kebele  # Optional
-        buyer_woreda = self._require(cust_details.woreda, "Wereda", cust_details.name, cust_link)
+        buyer_woreda = "" if is_walk_in else self._require(cust_details.woreda, "Wereda", cust_details.name, cust_link)
 
         buyer_id_number = cust_details.id_number
-        buyer_id_type = cust_details.id_type
-        if transaction_type == "B2C":
-            buyer_id_number = self._require(buyer_id_number, "ID Number", cust_details.name, cust_link)
-            buyer_id_type = self._require(buyer_id_type, "ID Type", cust_details.name, cust_link)
+        buyer_id_type = (cust_details.id_type or "").strip().upper()
+        # MoR accepts only NID, KID, SID, WID, PST, DLS, MRS. Normalize
+        # common human-readable labels; anything unrecognised is omitted
+        # (the schema does not require an ID for B2C).
+        if buyer_id_type not in ID_TYPES:
+            buyer_id_type = ID_TYPE_ALIASES.get(buyer_id_type, "")
+
+        # Walk-in sales fall back to the seller's region so the BuyerDetails
+        # schema (Region is a required, numeric 1-3 digit code) stays valid.
+        if is_walk_in and not buyer_region:
+            buyer_region = seller_region
 
         buyer_vat_number = frappe.db.get_value("Customer", invoice_doc.customer, "custom_vat_number")  # Conditional
 
-        if override_doc_num is not None:
-            doc_num = override_doc_num
-        else:
-            doc_num = int(invoice_doc.custom_document_number or 1)
+        if override_doc_num is None:
+            frappe.throw(
+                "Internal Error: build_invoice_payload() requires an explicit "
+                "document number. Callers must peek the next number via "
+                "_peek_next_document_number() (or reuse an existing invoice's "
+                "custom_document_number) before building the payload.",
+                title="EIMS Document Number Error"
+            )
+        doc_num = int(override_doc_num)
 
         if override_prev_irn is not None:
             prev_irn = override_prev_irn
@@ -324,8 +510,18 @@ class EIMSConnector:
         payment_entries = invoice_doc.get("payments")
         if payment_entries:
             payment_mode = payment_entries[0].mode_of_payment
+            resolved_payment_mode = resolve_mor_payment_mode(payment_mode)
+            if not resolved_payment_mode:
+                frappe.throw(
+                    f"Unsupported <b>Mode of Payment</b>: '{payment_mode}'. "
+                    f"MoR accepts only CASH, ADVANCE or CREDIT (rule 7022). Open the "
+                    f"<a href='/app/mode-of-payment/{payment_mode}'>{payment_mode}</a> "
+                    f"record and set <b>MoR Payment Mode</b> to one of CASH, ADVANCE or CREDIT.",
+                    title="EIMS Payment Mode Error"
+                )
+            payment_mode = resolved_payment_mode
 
-        raw_phone = cust_details.phone or invoice_doc.contact_mobile or ""
+        raw_phone = cust_details.phone or getattr(invoice_doc, "contact_mobile", "") or ""
         clean_phone = raw_phone.replace("+251", "0").replace(" ", "")
         if clean_phone and not clean_phone.startswith("0"):
             clean_phone = "0" + clean_phone
@@ -350,11 +546,6 @@ class EIMSConnector:
                 "Wereda": seller_wereda,
                 "City": seller_city,
             },
-            "BuyerDetails": {
-                "City": buyer_city,
-                "Region": buyer_region,
-                "Wereda": buyer_woreda,
-            },
             "SourceSystem": {
                 "SystemType": default_client.system_type,
                 "SystemNumber": default_client.system_number,
@@ -365,12 +556,21 @@ class EIMSConnector:
             },
             "ValueDetails": {
                 "InvoiceCurrency": invoice_doc.currency or "ETB",
-                "TaxValue": float(invoice_doc.total_taxes_and_charges or 0.0),
-                "TotalValue": float(invoice_doc.grand_total or 0.0)
             },
             "ReferenceDetails": {},
             "ItemList": []
         }
+
+        # BuyerDetails — minimal LegalName for walk-in sales (no buyer exists,
+        # but MoR requires the property and the LegalName field)
+        if not is_walk_in:
+            payload["BuyerDetails"] = {
+                "City": buyer_city,
+                "Region": buyer_region,
+                "Wereda": buyer_woreda,
+            }
+        else:
+            payload["BuyerDetails"] = {"LegalName": WALK_IN_CUSTOMER}
 
 
         # SellerDetails
@@ -385,28 +585,38 @@ class EIMSConnector:
         _add_if_present(payload["SellerDetails"], "Locality", company.get("custom_locality"))
 
         # BuyerDetails
-        _add_if_present(payload["BuyerDetails"], "LegalName", cust_details.legal_name or invoice_doc.customer_name)
-        _add_if_present(payload["BuyerDetails"], "Tin", clean_tin)
-        _add_if_present(payload["BuyerDetails"], "SubTin", cust_details.get("sub_tin"))
-        _add_if_present(payload["BuyerDetails"], "VatNumber", buyer_vat_number)
-        _add_if_present(payload["BuyerDetails"], "Email", buyer_email)
-        _add_if_present(payload["BuyerDetails"], "Phone", clean_phone)
-        _add_if_present(payload["BuyerDetails"], "TradeName", cust_details.get("trade_name"))
-        _add_if_present(payload["BuyerDetails"], "Country", buyer_country)
-        _add_if_present(payload["BuyerDetails"], "Zone", buyer_zone)
-        _add_if_present(payload["BuyerDetails"], "SubCity", cust_details.get("sub_city"))
-        _add_if_present(payload["BuyerDetails"], "HouseNumber", cust_details.house_number)
-        _add_if_present(payload["BuyerDetails"], "Kebele", buyer_kebele)
-        _add_if_present(payload["BuyerDetails"], "Locality", cust_details.get("locality"))
-        _add_if_present(payload["BuyerDetails"], "IdNumber", buyer_id_number)
-        _add_if_present(payload["BuyerDetails"], "IdType", buyer_id_type)
+        if not is_walk_in:
+            _add_if_present(payload["BuyerDetails"], "LegalName", cust_details.legal_name or invoice_doc.customer_name)
+            _add_if_present(payload["BuyerDetails"], "Tin", clean_tin)
+            _add_if_present(payload["BuyerDetails"], "SubTin", cust_details.get("sub_tin"))
+            _add_if_present(payload["BuyerDetails"], "VatNumber", buyer_vat_number)
+            _add_if_present(payload["BuyerDetails"], "Email", buyer_email)
+            _add_if_present(payload["BuyerDetails"], "Phone", clean_phone)
+            _add_if_present(payload["BuyerDetails"], "TradeName", cust_details.get("trade_name"))
+            _add_if_present(payload["BuyerDetails"], "Country", buyer_country)
+            _add_if_present(payload["BuyerDetails"], "Zone", buyer_zone)
+            _add_if_present(payload["BuyerDetails"], "SubCity", cust_details.get("sub_city"))
+            _add_if_present(payload["BuyerDetails"], "HouseNumber", cust_details.house_number)
+            _add_if_present(payload["BuyerDetails"], "Kebele", buyer_kebele)
+            _add_if_present(payload["BuyerDetails"], "Locality", cust_details.get("locality"))
+
+        # MoR requires a buyer ID for every transaction type (rule 7004).
+        # Use the buyer's own ID from Customer Details when its type is one
+        # of the valid codes, otherwise fall back to a generic KID / 000000
+        # so the submission is always accepted.
+        if buyer_id_type in ID_TYPES and buyer_id_number:
+            payload["BuyerDetails"]["IdNumber"] = buyer_id_number
+            payload["BuyerDetails"]["IdType"] = buyer_id_type
+        else:
+            payload["BuyerDetails"]["IdNumber"] = "000000"
+            payload["BuyerDetails"]["IdType"] = "KID"
 
         # SourceSystem
         _add_if_present(payload["SourceSystem"], "CashierName", cashier_name)
         _add_if_present(payload["SourceSystem"], "SalesPersonName", cashier_name)
 
         # PaymentDetails
-        _add_if_present(payload["PaymentDetails"], "Mode", payment_mode.upper() if payment_mode else None)
+        _add_if_present(payload["PaymentDetails"], "Mode", payment_mode)
 
         # ValueDetails
         discount_val = float(invoice_doc.discount_amount or 0.0)
@@ -449,16 +659,61 @@ class EIMSConnector:
         tax_rate = 0
         tax_entries = invoice_doc.get("taxes")
         if invoice_doc.taxes_and_charges and tax_entries:
-            account = tax_entries[0].account_head
-            tax_type = frappe.db.get_value("Account", account, "account_name")
-            tax_rate = tax_entries[0].rate
+            # Pick the first tax row that actually carries a rate (the first
+            # row may be a 0% / exempt row on mixed invoices).
+            for te in tax_entries:
+                if float(te.rate or 0) > 0:
+                    account = te.account_head
+                    tax_type = frappe.db.get_value("Account", account, "account_name")
+                    tax_rate = float(te.rate)
+                    break
         valid_units = {"LTR", "MTR", "101", "PCS", "ROL", "MTS", "PKG", "SET", "KLG"}
 
         for idx, item in enumerate(invoice_doc.items, start=1):
             base_rate = float(item.base_rate or 0.0)
             qty = float(item.qty or 0.0)
-            line_net_amount = float(item.net_amount or 0.0)
-            line_tax = round(line_net_amount * (tax_rate / 100), 2)
+            line_net_amount = float(item.base_net_amount or item.net_amount or 0.0)
+
+            # Per-item tax rate/code (item_tax_rate is a JSON map like
+            # {"VAT15 - GT": 15}) — falls back to the header tax row.
+            line_tax_rate = tax_rate
+            line_tax_code = tax_type
+            try:
+                item_tax_rate_map = json.loads(item.get("item_tax_rate") or "{}") or {}
+                for code, rate_val in item_tax_rate_map.items():
+                    rate_val = float(rate_val or 0)
+                    if rate_val:
+                        line_tax_rate = rate_val
+                        resolved = frappe.db.get_value("Account", code, "account_name") if code else None
+                        line_tax_code = resolved or code
+                        break
+            except (ValueError, TypeError):
+                pass
+
+            line_tax = round(line_net_amount * (line_tax_rate / 100), 6)
+
+            # UnitPrice must be the NET unit price (excl. tax) at full
+            # precision so MoR's UnitPrice x Quantity base matches our
+            # net_amount exactly. For "inclusive of tax" pricing the
+            # rate/base_rate is the gross price and MoR would compute the
+            # tax on top of it again.
+            unit_price = round(line_net_amount / qty, 6) if qty else base_rate
+
+            # Report the discount actually granted on this line. Both the
+            # list price and the charged amount are VAT-inclusive, so the
+            # difference is converted to the VAT-exclusive base MoR works
+            # in. UnitPrice is restated pre-discount and Discount is derived
+            # from it so that MoR's check "UnitPrice x Qty - Discount ==
+            # PreTaxValue" holds exactly.
+            line_discount = 0.0
+            pl_rate = float(item.get("price_list_rate") or 0)
+            amount_incl = float(item.amount or 0) or (base_rate * qty)
+            if qty and pl_rate > 0:
+                disc_incl = round(pl_rate * qty - amount_incl, 2)
+                if disc_incl > 0.005:
+                    disc_excl = disc_incl / (1 + (line_tax_rate or 0) / 100.0)
+                    unit_price = round((line_net_amount + disc_excl) / qty, 6)
+                    line_discount = round(unit_price * qty - line_net_amount, 6)
             raw_uom = str(item.uom or "PCS").strip().upper()
 
             line_item = {
@@ -467,19 +722,18 @@ class EIMSConnector:
                 "ProductDescription": item.description or item.item_name or "string",
                 "NatureOfSupplies": "goods",
                 "Quantity": qty,
-                "UnitPrice": base_rate,
+                "UnitPrice": unit_price,
                 "PreTaxValue": round(line_net_amount, 2),
-                "TaxCode": tax_type,
+                "TaxCode": line_tax_code,
                 "TaxAmount": line_tax,
                 "Unit": raw_uom if raw_uom in valid_units else "PCS",
-                "TotalLineAmount": round(line_net_amount + line_tax, 2)
+                "TotalLineAmount": round(line_net_amount + line_tax, 6)
             }
 
             _add_if_present(line_item, "HarmonizationCode", getattr(item, "custom_harmonization_code", None))
 
-            discount_amount = float(item.distributed_discount_amount or 0.0)
-            if discount_amount:
-                line_item["Discount"] = discount_amount
+            if line_discount:
+                line_item["Discount"] = line_discount
 
             excise_tax_val = getattr(item, "custom_excise_tax_value", None)
             if excise_tax_val:
@@ -489,67 +743,168 @@ class EIMSConnector:
 
             payload["ItemList"].append(line_item)
 
+        # ValueDetails must exactly equal the payload line sums so MoR's
+        # calculation-accuracy rule passes (rounding drift between per-line
+        # values and the invoice document totals would otherwise be rejected).
+        payload["ValueDetails"]["TaxValue"] = round(sum(it["TaxAmount"] for it in payload["ItemList"]), 6)
+        payload["ValueDetails"]["TotalValue"] = round(sum(it["TotalLineAmount"] for it in payload["ItemList"]), 6)
+        total_line_discount = round(sum(it.get("Discount", 0.0) for it in payload["ItemList"]), 6)
+        if total_line_discount:
+            payload["ValueDetails"]["Discount"] = total_line_discount
+
         self._validate_payload_schema_rules(payload, invoice_doc)
         return payload
 
+    def _friendly_network_error(self, e):
+        """Map connection-level failures to a clean, actionable message that
+        points the user at the EIMS Setting Base URL instead of dumping the
+        raw requests traceback (e.g. 'System Crash Error: HTTPConnectionPool
+        ... ConnectTimeoutError ...')."""
+        clean_url = (self.settings.base_url or "").strip().rstrip("/")
+        if isinstance(e, requests.exceptions.ConnectTimeout):
+            return (
+                f"Could not reach the EIRMS server at <b>{clean_url}</b> — the connection timed out. "
+                f"Check that the Base URL in <b>EIMS Setting</b> is correct and that the EIRMS "
+                f"server is reachable from this machine."
+            )
+        if isinstance(e, requests.exceptions.ConnectionError):
+            return (
+                f"Could not connect to the EIRMS server at <b>{clean_url}</b>. "
+                f"Check that the Base URL in <b>EIMS Setting</b> is correct, the server is running, "
+                f"and that this machine can reach it."
+            )
+        if isinstance(e, requests.exceptions.Timeout):
+            return (
+                f"The EIRMS server at <b>{clean_url}</b> did not respond in time. "
+                f"Check your network connection and the Base URL in <b>EIMS Setting</b>."
+            )
+        return str(e)
+
+    def _resolve_invoice_doctype(self, invoice_name):
+        """Return the doctype of the invoice: 'Sales Invoice' when the name
+        is a Sales Invoice, otherwise 'POS Invoice'. Sales Invoices and POS
+        Invoices are separate EIMS registrations that share one document
+        number source (EIMS Setting.last_document_number)."""
+        if frappe.db.exists("Sales Invoice", invoice_name):
+            return "Sales Invoice"
+        if frappe.db.exists("POS Invoice", invoice_name):
+            return "POS Invoice"
+        frappe.throw(f"Invoice {invoice_name} not found (neither Sales Invoice nor POS Invoice).")
+
     def submit_single_invoice(self, invoice_name):
         try:
+            doctype = self._resolve_invoice_doctype(invoice_name)
+            doc = frappe.get_doc(doctype, invoice_name)
+
+            existing_doc_num = doc.get("custom_document_number")
+            if existing_doc_num:
+                # idempotent resend: reuse the number already assigned to this invoice
+                doc_num = int(existing_doc_num)
+                is_resend = True
+            else:
+                doc_num = self._peek_next_document_number()
+                is_resend = False
+
             token = self.get_valid_token()
-            doc = frappe.get_doc("Sales Invoice", invoice_name)
-            invoice_payload = self.build_invoice_payload(doc)
-
             default_client = self.get_default_client_data()
-
-            auth_headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
-                "apikey": self.settings.get_password("api_key"),
-            }
 
             clean_url = self.settings.base_url.strip().rstrip('/')
             register_url = f"{clean_url}/v1/register"
             is_https = register_url.lower().startswith("https://")
-            json_string_payload = json.dumps(invoice_payload, separators=(",", ":"))
-            if is_https:
-                request_body = self._build_signed_envelope(json_string_payload, default_client)
-            else:
-                request_body = json_string_payload
 
-            response = requests.post(
-                register_url,
-                data=request_body,
-                headers=auth_headers,
-                timeout=15
-            )
+            attempts = 0
+            while True:
+                attempts += 1
+                invoice_payload = self.build_invoice_payload(doc, override_doc_num=doc_num)
 
-            if response.status_code == 401:
-                token = self.get_valid_token(force_refresh=True)
-                auth_headers["Authorization"] = f"Bearer {token}"
-                response = requests.post(
+                auth_headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {token}",
+                    "apikey": self.settings.get_password("api_key"),
+                }
+
+                json_string_payload = json.dumps(invoice_payload, separators=(",", ":"))
+                if is_https:
+                    request_body = self._build_signed_envelope(json_string_payload, default_client)
+                else:
+                    request_body = json_string_payload
+
+                response = self._post_with_retry(
                     register_url,
-                    data=request_body,
-                    headers=auth_headers,
+                    request_body,
+                    auth_headers,
                     timeout=15
                 )
 
-            if response.status_code in (200, 201):
-                res_json = response.json()
-                body_data = res_json.get("body", {})
-                irn = body_data.get("irn")
-                signed_qr_base64 = body_data.get("signedQR")
+                if response.status_code == 401:
+                    token = self.get_valid_token(force_refresh=True)
+                    auth_headers["Authorization"] = f"Bearer {token}"
+                    response = self._post_with_retry(
+                        register_url,
+                        request_body,
+                        auth_headers,
+                        timeout=15
+                    )
 
-                qr_code_url = self._save_qr_file(invoice_name, signed_qr_base64)
+                if response.status_code in (200, 201):
+                    res_json = response.json()
+                    body_data = res_json.get("body", {})
+                    irn = body_data.get("irn")
+                    signed_qr_base64 = body_data.get("signedQR")
 
-                frappe.db.set_value("Sales Invoice", invoice_name, {
-                    "custom_irn": irn,
-                    "custom_qr_code_url": qr_code_url,
-                    "custom_eims_status": "Registered"
-                }, update_modified=True)
+                    qr_code_url = self._save_qr_file(invoice_name, signed_qr_base64, doctype)
 
-                frappe.db.commit()
-                return {"status": "Transmitted", "message": f"Successfully registered. IRN: {irn}"}
-            else:
-                frappe.db.set_value("Sales Invoice", invoice_name, "custom_eims_status", "Failed", update_modified=True)
+                    frappe.db.set_value(doctype, invoice_name, {
+                        "custom_irn": irn,
+                        "custom_qr_code_url": qr_code_url,
+                        "custom_eims_status": "Registered",
+                        "custom_document_number": doc_num,
+                        # Exact totals MoR registered for this invoice — the
+                        # receipt must quote these verbatim or MoR rejects
+                        # it with "Invoice total amount mismatch".
+                        "custom_mor_total_value": invoice_payload["ValueDetails"]["TotalValue"],
+                    }, update_modified=True)
+
+                    # Only persist the counter after MoR confirms success.
+                    if doc_num > int(self.settings.last_document_number or 0):
+                        self._commit_document_number(doc_num)
+
+                    frappe.db.commit()
+                    return {"status": "Transmitted", "message": f"Successfully registered. IRN: {irn}"}
+
+                # MoR enforces strict sequential document numbers and tells us
+                # exactly which number it expects next. Adopt that number and
+                # retry once so a drifted local counter self-heals instead of
+                # burning numbers with "not in correct sequence" / "document
+                # number must be unique" rejections.
+                expected_num = self._parse_expected_doc_num(response.text)
+                if expected_num is not None and expected_num != doc_num and attempts < 2:
+                    self._commit_document_number(expected_num - 1)
+                    doc_num = expected_num
+                    frappe.db.set_value(
+                        doctype, invoice_name, "custom_document_number", doc_num,
+                        update_modified=True,
+                    )
+                    frappe.db.commit()
+                    continue
+
+                # MoR rejected the very number we were told to use. If that
+                # number was already registered for THIS invoice (a resend
+                # after a lost response), treat it as an idempotent success.
+                if expected_num is not None and expected_num == doc_num and is_resend:
+                    irn = self._lookup_irn_for_doc_num(doc_num)
+                    if irn:
+                        frappe.db.set_value(doctype, invoice_name, {
+                            "custom_irn": irn,
+                            "custom_eims_status": "Registered",
+                            "custom_document_number": doc_num,
+                        }, update_modified=True)
+                        if doc_num > int(self.settings.last_document_number or 0):
+                            self._commit_document_number(doc_num)
+                        frappe.db.commit()
+                        return {"status": "Transmitted", "message": f"Already registered. IRN: {irn}"}
+
+                frappe.db.set_value(doctype, invoice_name, "custom_eims_status", "Failed", update_modified=True)
                 frappe.db.commit()
 
                 error_msg = f"Error {response.status_code}: {response.text}"
@@ -560,16 +915,16 @@ class EIMSConnector:
             raise
         except Exception as e:
             frappe.log_error(message=frappe.get_traceback(), title=f"EIMS System Crash: {invoice_name}")
-            return {"status": "Rule Error", "message": f"System Crash Error: {str(e)}"}
+            return {"status": "Rule Error", "message": self._friendly_network_error(e)}
 
-    def _save_qr_file(self, invoice_name, signed_qr_base64):
+    def _save_qr_file(self, invoice_name, signed_qr_base64, doctype="Sales Invoice"):
         qr_code_url = ""
         if not signed_qr_base64:
             return qr_code_url
         try:
             file_name = f"qr_{invoice_name}.png"
             old_file_id = frappe.db.get_value("File", {
-                "attached_to_doctype": "Sales Invoice",
+                "attached_to_doctype": doctype,
                 "attached_to_name": invoice_name,
                 "file_name": file_name
             }, "name")
@@ -579,7 +934,7 @@ class EIMSConnector:
             qr_file = frappe.get_doc({
                 "doctype": "File",
                 "file_name": file_name,
-                "attached_to_doctype": "Sales Invoice",
+                "attached_to_doctype": doctype,
                 "attached_to_name": invoice_name,
                 "content": base64.b64decode(signed_qr_base64),
                 "is_private": 0
@@ -671,7 +1026,7 @@ class EIMSConnector:
         docs.sort(key=lambda d: d.creation)
         pending = docs
 
-        current_doc_num = self._get_max_document_number() + 1
+        current_doc_num = self._peek_next_document_number()
         prev_irn = self._lookup_irn_for_doc_num(current_doc_num - 1)
 
         clean_url = self.settings.base_url.strip().rstrip('/')
@@ -711,6 +1066,8 @@ class EIMSConnector:
                             "custom_eims_status": "Registered",
                             "custom_document_number": assigned_num
                         }, update_modified=True)
+                        if assigned_num > int(self.settings.last_document_number or 0):
+                            self._commit_document_number(assigned_num)
                         results_map[doc.name] = {"status": "Transmitted", "message": f"Successfully registered. IRN: {irn}"}
                         successes += 1
                         logs.append(f"[{doc.name}] Success -> IRN: {irn} (DocNum: {assigned_num}, via single-invoice fallback)")
@@ -866,7 +1223,8 @@ class EIMSConnector:
                             "custom_eims_status": "Registered",
                             "custom_document_number": assigned_num
                         }, update_modified=True)
-
+                        if assigned_num > int(self.settings.last_document_number or 0):
+                            self._commit_document_number(assigned_num)
                         results_map[doc.name] = {
                             "status": "Transmitted",
                             "message": f"Successfully registered. IRN: {irn}"
@@ -903,12 +1261,13 @@ class EIMSConnector:
 
             except Exception as batch_err:
                 eims_logger.exception("Bulk submission system crash")
+                friendly_msg = self._friendly_network_error(batch_err)
                 for doc, assigned_num in batch_docs:
                     if doc.name not in results_map:
-                        results_map[doc.name] = {"status": "Rule Error", "message": f"System Crash Error: {str(batch_err)}"}
+                        results_map[doc.name] = {"status": "Rule Error", "message": friendly_msg}
                         frappe.db.set_value("Sales Invoice", doc.name, "custom_eims_status", "Failed", update_modified=True)
                         failures += 1
-                        logs.append(f"[{doc.name}] Failed -> System Crash Error: {str(batch_err)}")
+                        logs.append(f"[{doc.name}] Failed -> {friendly_msg}")
                 frappe.db.commit()
                 pending = []
 
@@ -1076,7 +1435,7 @@ def eims_callback():
 
         connector = EIMSConnector()
         processed, skipped, failed = 0, 0, 0
-        last_doc_num = connector._get_max_document_number()
+        last_doc_num = connector._peek_next_document_number() - 1
 
         for item in items:
             if not isinstance(item, dict):
@@ -1111,7 +1470,12 @@ def eims_callback():
                         "custom_conversation_id": item.get("conversationId") or item.get("conversionId"),
                         "custom_document_number": doc_no,
                     }, update_modified=True)
-
+                    try:
+                        doc_no_int = int(doc_no)
+                        if doc_no_int > int(connector.settings.last_document_number or 0):
+                            connector._commit_document_number(doc_no_int)
+                    except (TypeError, ValueError):
+                        pass
                     try:
                         last_doc_num = max(last_doc_num, int(doc_no))
                     except (TypeError, ValueError):
@@ -1134,7 +1498,6 @@ def eims_callback():
                         )
 
                     processed += 1
-
                 else:
                     rule_error = item.get("ruleError")
                     error_detail = json.dumps(rule_error) if rule_error else json.dumps(item)

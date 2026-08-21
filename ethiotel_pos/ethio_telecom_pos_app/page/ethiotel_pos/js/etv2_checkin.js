@@ -154,44 +154,7 @@ erpnext.POSV2.CheckinWorkspace = class {
                     </div>
                 </div>
 
-                <!-- Danger Zone Action -->
-                <div class="etv2-checkin-actions-footer">
-                    <button class="etv2-btn etv2-btn-danger etv2-btn-block etv2-checkin-close-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        ${__("Close Shift & Submit Entry")}
-                    </button>
-                    <p class="etv2-action-hint">${__("This action will lock the register and generate closing records.")}</p>
-                </div>
             `);
-            this.$el.find(".etv2-checkin-close-btn").on("click", () => this.close_shift(entry));
         });
-    }
-
-    close_shift(entry) {
-        const me = this;
-        frappe.confirm(
-            __("Are you sure you want to close this shift? <br><br> The POS Closing Entry will be created and submitted. You won't be able to process sales until a new shift is opened."),
-            () => {
-                const pv = this.shell.get_pv();
-                frappe.call({
-                    method: `${pv}.close_shift`,
-                    args: { pos_opening: entry },
-                    freeze: true,
-                    freeze_message: __("Closing Shift..."),
-                }).then((r) => {
-                    if (r.message && r.message.status === "ok") {
-                        frappe.show_alert({ message: __("Shift successfully closed (Entry: {0})", [r.message.closing_entry]), indicator: "green" });
-                        this.shell.pos_opening = null;
-                        this.shell.pos_profile = null;
-                        this.shell.$main.find(".etv2-shift-chip").addClass("etv2-shift-chip-hidden");
-                        this.load();
-                    } else {
-                        frappe.show_alert({ message: __("Failed to close shift: {0}", [r.exc]), indicator: "red" });
-                    }
-                });
-            }
-        );
     }
 };

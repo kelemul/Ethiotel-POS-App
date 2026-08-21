@@ -8,15 +8,16 @@
  "field_order": [
   "api_key",
   "default_system_number",
-  "last_document_number",
-  "column_break_hsmj",
-  "seller_tin",
-  "base_url",
-  "section_break_ilyk",
-  "client_data_list",
-  "current_access_token",
-  "token_expiry"
- ],
+   "last_document_number",
+   "column_break_hsmj",
+   "seller_tin",
+   "base_url",
+   "section_break_ilyk",
+   "client_data_list",
+   "default_taxes_and_charges_template",
+   "current_access_token",
+   "token_expiry"
+  ],
  "fields": [
   {
    "fieldname": "api_key",
@@ -64,12 +65,19 @@
    "label": "Default System Number",
    "read_only": 1
   },
-  {
-   "fieldname": "last_document_number",
-   "fieldtype": "Int",
-   "label": "Last Document Number"
-  }
- ],
+   {
+    "fieldname": "last_document_number",
+    "fieldtype": "Int",
+    "label": "Last Document Number"
+   },
+   {
+    "fieldname": "default_taxes_and_charges_template",
+    "fieldtype": "Link",
+    "label": "Default Tax Template",
+    "options": "Sales Taxes and Charges Template",
+    "description": "Default Sales Taxes and Charges Template applied to POS invoices when no template is chosen at check-in or set on the POS Profile."
+   }
+  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,

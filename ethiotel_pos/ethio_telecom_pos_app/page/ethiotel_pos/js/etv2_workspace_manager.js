@@ -24,7 +24,7 @@ erpnext.POSV2.WorkspaceManager = class {
 		// Workspaces that need an active shift must not open while the
 		// register is closed — route them to the check-in screen, which
 		// renders the "open a shift" empty state.
-		const needs_shift = ["sale", "held", "dashboard", "customers", "returns", "reports"];
+		const needs_shift = ["sale", "held", "dashboard", "customers", "returns", "reports", "mor"];
 		if (needs_shift.includes(name) && !this.shell.pos_profile) {
 			if (this.current !== "checkin") {
 				this.shell.sidebar.set_active("checkin");

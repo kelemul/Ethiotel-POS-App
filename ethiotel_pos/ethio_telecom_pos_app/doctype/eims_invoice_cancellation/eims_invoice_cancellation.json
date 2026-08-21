@@ -5,21 +5,22 @@
  "creation": "2026-06-11 09:04:26.614886",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "cancelled_at",
-  "is_bulk_cancellation",
-  "column_break_gull",
-  "status",
-  "cancellation_reasons",
-  "section_break_ooaq",
-  "remark",
-  "status_code",
-  "single_cancellation_tab",
-  "sales_invoice",
-  "irn",
-  "bulk_cancellation_tab",
-  "invoice_list"
- ],
+"field_order": [
+   "cancelled_at",
+   "is_bulk_cancellation",
+   "column_break_gull",
+   "status",
+   "cancellation_reasons",
+   "section_break_ooaq",
+   "remark",
+   "status_code",
+   "single_cancellation_tab",
+   "sales_invoice",
+   "pos_invoice",
+   "irn",
+   "bulk_cancellation_tab",
+   "invoice_list"
+  ],
  "fields": [
   {
    "fetch_from": "sales_invoice.custom_irn",
@@ -80,6 +81,12 @@
    "fieldtype": "Link",
    "label": "Sales Invoice",
    "options": "Sales Invoice"
+  },
+  {
+   "fieldname": "pos_invoice",
+   "fieldtype": "Link",
+   "label": "POS Invoice",
+   "options": "POS Invoice"
   },
   {
    "depends_on": "eval:doc.is_bulk_cancellation == 1;",

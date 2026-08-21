@@ -5,15 +5,16 @@
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
- "field_order": [
-  "sales_invoice",
-  "invoice_irn",
-  "payment_coverage",
-  "invoice_paid_amount",
-  "discount_amount",
-  "remaining_amount",
-  "total_amount"
- ],
+"field_order": [
+   "sales_invoice",
+   "pos_invoice",
+   "invoice_irn",
+   "payment_coverage",
+   "invoice_paid_amount",
+   "discount_amount",
+   "remaining_amount",
+   "total_amount"
+  ],
  "fields": [
   {
    "fieldname": "invoice_irn",
@@ -70,8 +71,14 @@
    "fieldtype": "Link",
    "label": "Sales Invoice",
    "options": "Sales Invoice",
-   "read_only": 1,
-   "reqd": 1
+   "read_only": 1
+  },
+  {
+   "fieldname": "pos_invoice",
+   "fieldtype": "Link",
+   "label": "POS Invoice",
+   "options": "POS Invoice",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

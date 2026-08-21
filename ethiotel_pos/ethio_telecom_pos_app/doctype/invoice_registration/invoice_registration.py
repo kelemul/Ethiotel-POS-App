@@ -7,11 +7,15 @@ from frappe.model.document import Document
 from ethiotel_pos.eims_connector import EIMSConnector
 
 class InvoiceRegistration(Document):
+    # MoR registration is now triggered only from the Sales Invoice /
+    # POS Invoice MoR task actions — the on-save auto-processing below is
+    # disabled (the submission helpers remain available for those actions).
     def before_save(self):
-        if self.invoice_registration_type == "Single":
-            self.process_single_registration()
-        elif self.invoice_registration_type == "Bulk":
-            self.process_bulk_registration()
+        # if self.invoice_registration_type == "Single":
+        #     self.process_single_registration()
+        # elif self.invoice_registration_type == "Bulk":
+        #     self.process_bulk_registration()
+        pass
 
     def process_single_registration(self):
         connector = EIMSConnector()

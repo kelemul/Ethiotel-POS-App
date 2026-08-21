@@ -12,7 +12,8 @@ from ethiotel_pos.eims_connector import EIMSConnector
 
 CANCELLATION_REASON_MAP = {
     "Order cancelled": "1",
-    "DuplicateData entry": "2",
+    "Duplicate": "2",
+    "Data entry mistake": "3",
     "Mistake": "3",
     "Others": "4"
 }

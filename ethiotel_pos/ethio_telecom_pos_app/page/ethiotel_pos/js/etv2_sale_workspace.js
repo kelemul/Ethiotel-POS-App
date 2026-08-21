@@ -9,6 +9,7 @@ erpnext.POSV2.SaleWorkspace = class {
 
 		this.cart = {};
 		this.customer = null;
+		this.walk_in_customer = null;
 		this.payment_mode = null;   
 		this.items = [];
 		this.item_groups = [];
@@ -16,11 +17,31 @@ erpnext.POSV2.SaleWorkspace = class {
 		this.discount_mode = "percentage"; // "percentage" | "value"
 		this.discount_value = 0;
 
+		this.tax_template = this.shell.tax_template || null;
+		this.tax_rate = null;
+
 		this.view_mode = "grid"; // "grid" | "list"
 
 		this.render();
 		this.load_item_groups();
 		this.load_products();
+		this.load_tax_template();
+		this.load_walk_in_customer();
+	}
+
+	load_walk_in_customer() {
+		const me = this;
+		const pv = this.shell.get_pv();
+		frappe.call({
+			method: `${pv}.get_walk_in_customer`,
+		}).then((r) => {
+			if (r.message && r.message.customer) {
+				me.walk_in_customer = r.message.customer;
+				if (!me.customer) {
+					me.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${__("Walk-In Customer")}</b>`);
+				}
+			}
+		});
 	}
 
 	render() {
@@ -79,6 +100,11 @@ erpnext.POSV2.SaleWorkspace = class {
 		<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
 		<span>${__("Payment")}: <b class="fk-payment-label">${__("Select")}</b></span>
 	</button>
+	<div class="fk-customer-divider"></div>
+	<button class="fk-customer-btn etv2-sale-tax-btn" type="button">
+		<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+		<span>${__("Tax")}: <b class="fk-tax-label">${__("Select")}</b></span>
+	</button>
             </div>
             <div class="fk-cart-head">
                 <div class="fk-cart-title-row">
@@ -97,6 +123,7 @@ erpnext.POSV2.SaleWorkspace = class {
             <div class="fk-invoice">
                 <div class="fk-row-line"><span>${__("Subtotal")}</span><span class="fk-subtotal">0.00</span></div>
                 <div class="fk-row-line fk-discount-row"><span>${__("Discount")}</span><span class="fk-discount-value fk-row-discount">- 0.00</span></div>
+                <div class="fk-row-line fk-tax-row"><span>${__("Tax")} (<span class="fk-tax-rate-label">0%</span>)</span><span class="fk-tax-value">0.00</span></div>
                 <div class="fk-divider"></div>
                 <div class="fk-row-line fk-row-total"><span>${__("Total")}</span><span class="fk-grand">0.00</span></div>
             </div>
@@ -218,6 +245,8 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 		this.$el.find(".etv2-sale-customer-btn").on("click", () => this.select_customer());
 		//payment method select
 		this.$el.find(".etv2-sale-payment-btn").on("click", () => this.select_payment_mode());
+		// tax template select
+		this.$el.find(".etv2-sale-tax-btn").on("click", () => this.select_tax_template());
 		// cart actions
 		this.$el.find(".fk-hold-btn").on("click", () => this.hold_order());
 		this.$el.find(".etv2-checkin-btn").on("click", () => this.checkout());
@@ -836,16 +865,37 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 		return Object.keys(this.cart).reduce((s, k) => s + this.cart[k].rate * this.cart[k].qty, 0);
 	}
 
-	cart_discount() {
-		const subtotal = this.cart_subtotal();
-		if (this.discount_mode === "percentage") {
-			return (subtotal * flt(this.discount_value || 0)) / 100;
+	// Taxable base before discount — mirrors the invoice net_total. When the
+	// POS Profile prices are tax-inclusive, the shelf rates include VAT, so
+	// the net is gross / (1 + rate).
+	cart_net_subtotal() {
+		const gross = this.cart_subtotal();
+		const rate = flt(this.tax_rate || 0);
+		if (this.is_tax_inclusive() && rate > 0) {
+			return gross / (1 + rate / 100);
 		}
-		return Math.min(flt(this.discount_value || 0), subtotal);
+		return gross;
+	}
+
+	is_tax_inclusive() {
+		return !!(this.shell.settings && this.shell.settings.posa_tax_inclusive);
+	}
+
+	cart_discount() {
+		const net = this.cart_net_subtotal();
+		if (this.discount_mode === "percentage") {
+			return (net * flt(this.discount_value || 0)) / 100;
+		}
+		return Math.min(flt(this.discount_value || 0), net);
+	}
+
+	cart_tax() {
+		const taxable = this.cart_net_subtotal() - this.cart_discount();
+		return (taxable * flt(this.tax_rate || 0)) / 100;
 	}
 
 	cart_total() {
-		return this.cart_subtotal() - this.cart_discount();
+		return this.cart_net_subtotal() - this.cart_discount() + this.cart_tax();
 	}
 
 	render_cart() {
@@ -891,14 +941,19 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 			}
 
 		// --- Bottom: discount + payment ---
-		const subtotal = this.cart_subtotal();
+		const subtotal = this.cart_net_subtotal();
 		const discount = this.cart_discount();
-		const grand_total = subtotal - discount;
+		const tax = this.cart_tax();
+		const grand_total = subtotal - discount + tax;
 
 		this.$el.find(".fk-subtotal").text(format_currency(subtotal));
 		this.$el.find(".fk-row-discount").text(`- ${format_currency(discount)}`);
 		this.$el.find(".fk-discount-input-row .fk-discount-value").text(`- ${format_currency(discount)}`);
+		this.$el.find(".fk-tax-value").text(format_currency(tax));
+		this.$el.find(".fk-tax-rate-label").text(`${flt(this.tax_rate || 0)}%`);
+		this.$el.find(".fk-tax-row").toggle(this.tax_template && flt(this.tax_rate || 0) > 0);
 		this.$el.find(".fk-grand").text(format_currency(grand_total));
+		this.$el.find(".fk-checkin-total").text(format_currency(grand_total));
 
 		// Show/hide discount input row based on mode
 		// if (this.discount_mode === "percentage" && this.discount_value > 0) {
@@ -921,8 +976,8 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 			fields: [{ fieldtype: "HTML", fieldname: "body" }],
 			primary_action_label: __("Choose Customer"),
 			primary_action: () => {
-				me.customer = null;
-				me.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${__("Choose Customer")}</b>`);
+				me.customer = me.walk_in_customer || null;
+				me.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${me.walk_in_customer ? __("Walk-In Customer") : __("Choose Customer")}</b>`);
 				dialog.hide();
 			},
 		});
@@ -1014,8 +1069,80 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 	});
 	dialog.show();
 }
+	// ---------------------------------------------------------------
+	// Tax template — load the current shift template + its rate
+	// ---------------------------------------------------------------
+	load_tax_template() {
+		const me = this;
+		const pv = this.shell.get_pv();
+		frappe.call({
+			method: `${pv}.get_tax_templates`,
+		}).then((r) => {
+			const data = r.message || {};
+			const templates = data.templates || [];
+			if (!this.tax_template) {
+				this.tax_template = data.current || null;
+			}
+			const match = templates.find((t) => t.name === this.tax_template);
+			this.tax_rate = match ? match.rate : null;
+			this.update_tax_ui();
+		});
+	}
+
+	select_tax_template() {
+		const me = this;
+		const pv = this.shell.get_pv();
+		frappe.call({
+			method: `${pv}.get_tax_templates`,
+		}).then((r) => {
+			const data = r.message || {};
+			const templates = data.templates || [];
+			const dialog = new frappe.ui.Dialog({
+				title: __("Select Tax Template"),
+				fields: [{ fieldtype: "HTML", fieldname: "body" }],
+			});
+			dialog.fields_dict.body.$wrapper.html(
+				`<div class="fk-pay-modes">` +
+				templates.map((t) => `
+					<div class="fk-pay-mode ${t.name === this.tax_template ? "active" : ""}" data-tax="${frappe.utils.escape_html(t.name)}">
+						<span class="fk-pm-info">
+							<span class="fk-pm-name">${frappe.utils.escape_html(t.name)}</span>
+							<span class="fk-pm-sub">${__("Tax")} ${flt(t.rate)}%</span>
+						</span>
+						<span class="fk-pm-check"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span>
+					</div>`).join("") +
+				`</div>`
+			);
+			dialog.fields_dict.body.$wrapper.on("click", ".fk-pay-mode", (e) => {
+				const name = $(e.currentTarget).attr("data-tax");
+				const match = templates.find((t) => t.name === name);
+				me.tax_template = name;
+				me.tax_rate = match ? match.rate : null;
+				me.shell.tax_template = name;
+				me.update_tax_ui();
+				me.render_cart();
+				dialog.hide();
+				frappe.call({
+					method: `${pv}.set_default_tax_template`,
+					args: { tax_template: name },
+				}).then((res) => {
+					if (!res.exc) {
+						frappe.show_alert({ message: __("Default tax template set to {0}.", [name]), indicator: "green" });
+					}
+				});
+			});
+			dialog.show();
+		});
+	}
+
+	update_tax_ui() {
+		const label = this.tax_template || __("Select");
+		this.$el.find(".fk-tax-label").text(label);
+		this.$el.find(".fk-tax-rate-label").text(`${flt(this.tax_rate || 0)}%`);
+	}
+
 	build_order_doc() {
-		const default_customer = this.customer || (this.shell.settings && this.shell.settings.customer) || null;
+		const default_customer = this.customer || this.walk_in_customer || (this.shell.settings && this.shell.settings.customer) || null;
 		if (!default_customer) {
 			frappe.show_alert({ message: __("Select a customer before checkout."), indicator: "orange" });
 			return null;
@@ -1050,8 +1177,11 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 			}),
 		};
 		
+		if (this.tax_template) {
+			doc.taxes_and_charges = this.tax_template;
+		}
 		if (this.discount_value > 0) {
-			doc.apply_discount_on = "Grand Total";
+			doc.apply_discount_on = "Net Total";
 			if (this.discount_mode === "percentage") {
 				doc.additional_discount_percentage = flt(this.discount_value);
 			} else {
@@ -1289,7 +1419,7 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 				this.payment_mode = null;
 				this.$el.find(".fk-payment-label").text(__("Select"));
 				this.discount_value = 0;
-				this.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${__("Choose Customer")}</b>`);
+				this.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${this.walk_in_customer ? __("Walk-In Customer") : __("Choose Customer")}</b>`);
 				this.$el.find(".fk-discount-input").val("");
 				this.render_cart();
 				frappe.show_alert({
@@ -1299,7 +1429,6 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 				return;
 			}
 
-			const win = with_print ? ethiotel_print_placeholder() : null;
 			const pv = this.shell.get_pv();
 			frappe.call({
 				method: `${pv}.save_held_order`,
@@ -1321,21 +1450,27 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 							this.payment_mode = null;
 							this.$el.find(".fk-payment-label").text(__("Select"));
 							this.discount_value = 0;
-							this.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${__("Choose Customer")}</b>`);
+							this.$el.find(".etv2-sale-customer-btn span").html(`${__("Customer")}: <b>${this.walk_in_customer ? __("Walk-In Customer") : __("Choose Customer")}</b>`);
 							this.$el.find(".fk-discount-input").val("");
 							this.render_cart();
-							if (with_print) {
-								if (win) {
-									win.location = ethiotel_print_url("POS Invoice", res.message.invoice_name, "EIMS Invoice");
-								} else {
-									this.print_invoice(res.message.invoice_name);
-								}
-							} else {
-								this.after_sale_actions(res.message.invoice_name, change);
-							}
+							this.finalize_sale_with_mor(res.message.invoice_name);
+						} else {
+							frappe.show_alert({
+								message: (res.message && res.message.message) || __("Invoice submission failed."),
+								indicator: "red",
+							});
 						}
+					}).catch((err) => {
+						console.error("Invoice submission error:", err);
+					});
+				} else {
+					frappe.show_alert({
+						message: (r.message && r.message.message) || __("Could not save the order."),
+						indicator: "red",
 					});
 				}
+			}).catch((err) => {
+				console.error("Order save error:", err);
 			});
 		};
 
@@ -1344,6 +1479,34 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 		$body.find(".fk-pay-cancel-btn").on("click", () => dialog.hide());
 
 		dialog.show();
+	}
+
+	// ---------------------------------------------------------------
+	// After a sale is submitted: hand MoR registration + light-receipt
+	// preparation to a background worker. The cashier never waits — the
+	// receipt is printed later from the MoR Invoices page.
+	// ---------------------------------------------------------------
+	finalize_sale_with_mor(invoice_name) {
+		const pv = this.shell.get_pv();
+		frappe.call({
+			method: `${pv}.queue_mor_registration`,
+			args: { pos_invoice_name: invoice_name },
+		}).then((r) => {
+			const res = r.message || {};
+			if (res.status === "queued") {
+				frappe.show_alert({
+					message: __("Sending to MoR in background…"),
+					indicator: "blue",
+				});
+			} else if (res.status === "error") {
+				frappe.show_alert({
+					message: res.message || __("MoR registration not queued."),
+					indicator: "orange",
+				});
+			}
+		}).catch((err) => {
+			console.error("MoR queue error:", err);
+		});
 	}
 
 	// ---------------------------------------------------------------

@@ -20,8 +20,14 @@ _pv = "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos"
 # ---------------------------------------------------------------------
 _POS_MOR_FIELDS = (
 	("custom_sales_invoice", "Link", "Sales Invoice"),
-	("custom_eims_status", "Select", "\nRegistered\nPending\nFailed\nTransmitted\nCancelled"),
+	("custom_eims_status", "Select", "\nNot Submitted\nRegistered\nPending\nFailed\nTransmitted\nCancelled"),
 	("custom_mor_irn", "Data", None),
+	("custom_document_number", "Int", None),
+	("custom_irn", "Data", None),
+	("custom_mor_total_value", "Currency", None),
+	("custom_qr_code_url", "Attach Image", None),
+	("custom_light_receipt_html", "Long Text", None),
+	("custom_conversation_id", "Data", None),
 )
 
 
@@ -46,113 +52,82 @@ def _ensure_pos_mor_fields():
 	frappe.db.commit()
 
 
-def _convert_pos_invoice_to_sales_invoice(pos_invoice_name):
-	"""Create + submit a Sales Invoice mirroring a submitted POS Invoice.
-	Returns the Sales Invoice name (reuses an existing conversion)."""
-	_ensure_pos_mor_fields()
-	existing = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_sales_invoice")
-	if existing and frappe.db.get_value("Sales Invoice", existing, "docstatus") == 1:
-		return existing
+def _get_or_create_walk_in_customer(company=None):
+	"""Return the walk-in customer (auto-created on first use). Walk-in
+	sales carry this name on the POS Invoice but are submitted to MoR as a
+	minimal B2C invoice with no buyer registration details."""
+	from ethiotel_pos.eims_connector import WALK_IN_CUSTOMER
 
-	pos = frappe.get_doc("POS Invoice", pos_invoice_name)
-	if pos.docstatus != 1:
-		frappe.throw(_("Only submitted POS Invoices can be registered with MoR."))
-
-	si = frappe.new_doc("Sales Invoice")
-	si.customer = pos.customer
-	si.company = pos.company
-	si.posting_date = pos.posting_date
-	si.set_posting_time = 1
-	si.posting_time = pos.posting_time or now_datetime().time()
-	si.due_date = pos.due_date
-	si.currency = pos.currency
-	si.conversion_rate = pos.conversion_rate or 1
-	si.is_pos = 0
-	si.update_stock = 0
-	si.set_warehouse = pos.set_warehouse
-	si.debit_to = pos.debit_to
-	si.party_account_currency = pos.party_account_currency
-	si.cost_center = pos.cost_center
-	si.disable_rounded_total = 1  # required by the EIRMS override
-	si.remarks = _("Converted from POS Invoice {0}").format(pos.name)
-	si.flags.ignore_permissions = True
-
-	for item in pos.items:
-		si.append(
-			"items",
-			{
-				"item_code": item.item_code,
-				"item_name": item.item_name,
-				"qty": item.qty,
-				"uom": item.uom,
-				"conversion_factor": item.conversion_factor or 1,
-				"rate": item.rate,
-				"price_list_rate": item.price_list_rate,
-				"discount_percentage": item.discount_percentage or 0,
-				"warehouse": item.warehouse or pos.set_warehouse,
-				"cost_center": item.cost_center or pos.cost_center,
-				"serial_no": item.serial_no,
-				"batch_no": item.batch_no,
-			},
-		)
-
-	for tax in pos.taxes:
-		si.append(
-			"taxes",
-			{
-				"charge_type": tax.charge_type,
-				"account_head": tax.account_head,
-				"description": tax.description,
-				"rate": tax.rate,
-				"tax_amount": tax.tax_amount,
-			},
-		)
-
-	for p in pos.payments:
-		si.append(
-			"payments",
-			{
-				"mode_of_payment": p.mode_of_payment,
-				"amount": p.amount,
-				"type": p.type,
-				"account": p.account,
-				"default": p.default,
-			},
-		)
-
-	si.insert(ignore_permissions=True)
-	si.submit()
-	frappe.db.set_value(
-		"POS Invoice", pos_invoice_name, "custom_sales_invoice", si.name, update_modified=True
+	if frappe.db.exists("Customer", WALK_IN_CUSTOMER):
+		return WALK_IN_CUSTOMER
+	if not company:
+		company = frappe.db.get_single_value("Global Defaults", "default_company")
+	if not company:
+		company = frappe.db.get_value("Company", {"is_group": 0}, "name")
+	company_meta = frappe.get_meta("Company")
+	customer_group = frappe.db.get_value("Company", company, "default_customer_group") if company_meta.has_field("default_customer_group") else None
+	territory = frappe.db.get_value("Company", company, "default_territory") if company_meta.has_field("default_territory") else None
+	if not customer_group or not frappe.db.exists("Customer Group", customer_group):
+		customer_group = frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
+	if not territory or not frappe.db.exists("Territory", territory):
+		territory = frappe.db.get_value("Territory", {"is_group": 0}, "name")
+	cust = frappe.get_doc(
+		{
+			"doctype": "Customer",
+			"customer_name": WALK_IN_CUSTOMER,
+			"customer_type": "Individual",
+			"customer_group": customer_group,
+			"territory": territory,
+		}
 	)
+	cust.flags.ignore_permissions = True
+	cust.insert(ignore_permissions=True)
 	frappe.db.commit()
-	return si.name
+	return WALK_IN_CUSTOMER
+
+
+@frappe.whitelist()
+def get_walk_in_customer():
+	"""Return the walk-in customer name used when no customer is selected."""
+	return {"status": "ok", "customer": _get_or_create_walk_in_customer()}
+
+
+def _convert_pos_invoice_to_sales_invoice(pos_invoice_name):
+	raise NotImplementedError("POS Invoices are registered with MoR directly and are never converted to Sales Invoices.")
 
 
 @frappe.whitelist()
 def register_with_mor(pos_invoice_name):
-	"""Send a submitted POS Invoice to the MoR: convert to a Sales Invoice
-	(first time only) then run the EIMS registration."""
+	"""Send a submitted POS Invoice directly to the MoR. The POS Invoice is
+	its own EIMS registration — it is NOT converted into a Sales Invoice.
+	The MoR document number is pulled from EIMS Setting (peek) and committed
+	back only after a successful registration, exactly like Sales Invoices."""
 	try:
-		si_name = _convert_pos_invoice_to_sales_invoice(pos_invoice_name)
-		sales_status = frappe.db.get_value("Sales Invoice", si_name, "custom_eims_status")
-		if sales_status == "Registered":
-			return {"status": "ok", "result": {"status": "Transmitted", "message": "Already Registered"}, "sales_invoice": si_name}
+		_ensure_pos_mor_fields()
+		pos = frappe.get_doc("POS Invoice", pos_invoice_name)
+		if pos.docstatus != 1:
+			return {"status": "error", "message": _("Only submitted POS Invoices can be registered with MoR.")}
+		if pos.custom_eims_status == "Registered":
+			return {"status": "ok", "result": {"status": "Transmitted", "message": "Already Registered"}, "irn": pos.custom_irn or pos.custom_mor_irn, "eims_status": "Registered", "document_number": pos.custom_document_number, "qr_code_url": pos.get("custom_qr_code_url")}
 
 		from ethiotel_pos.eims_connector import EIMSConnector
 
-		res = EIMSConnector().submit_single_invoice(si_name)
+		res = EIMSConnector().submit_single_invoice(pos_invoice_name)
 
-		irn = frappe.db.get_value("Sales Invoice", si_name, "custom_irn")
-		status = frappe.db.get_value("Sales Invoice", si_name, "custom_eims_status") or res.get("status")
-		frappe.db.set_value(
-			"POS Invoice", pos_invoice_name, "custom_eims_status", status, update_modified=True
-		)
-		if irn:
-			frappe.db.set_value("POS Invoice", pos_invoice_name, "custom_mor_irn", irn, update_modified=True)
+		irn = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_irn") or frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_mor_irn")
+		doc_num = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_document_number")
+		status = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_eims_status") or res.get("status")
+		qr_code_url = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_qr_code_url")
 		frappe.db.commit()
 
-		return {"status": "ok", "result": res, "sales_invoice": si_name, "irn": irn, "eims_status": status}
+		return {
+			"status": "ok",
+			"result": res,
+			"irn": irn,
+			"eims_status": status,
+			"document_number": doc_num,
+			"qr_code_url": qr_code_url,
+		}
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "V2 MoR registration error")
 		return {"status": "error", "message": str(e)}
@@ -160,27 +135,25 @@ def register_with_mor(pos_invoice_name):
 
 @frappe.whitelist()
 def verify_mor_pos_invoice(pos_invoice_name=None, irn=None):
-	"""Verify an MoR invoice by IRN (or from the converted Sales Invoice)."""
+	"""Verify an MoR POS Invoice by its own IRN (no Sales Invoice involved)."""
 	try:
 		_ensure_pos_mor_fields()
-		sales_invoice = None
-		if pos_invoice_name:
-			sales_invoice = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_sales_invoice")
 		if not irn:
 			irn = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_mor_irn") if pos_invoice_name else None
-			if not irn and sales_invoice:
-				irn = frappe.db.get_value("Sales Invoice", sales_invoice, "custom_irn")
+		if not irn:
+			irn = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_irn") if pos_invoice_name else None
 		if not irn:
 			return {"status": "error", "message": _("Unable to determine IRN for verification")}
 
 		doc = frappe.get_doc(
 			{
 				"doctype": "EIMS Invoice Verification",
-				"select_registered_invoices": sales_invoice,
+				"select_registered_invoices": frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_sales_invoice"),
+				"pos_invoice": pos_invoice_name,
 				"irn": irn.strip(),
 			}
 		)
-		doc.insert(ignore_permissions=True)
+		doc.insert(ignore_permissions=True, ignore_mandatory=True, ignore_links=True)
 		res = doc.trigger_remote_verification()
 		return {"status": "ok", "result": res, "irn": irn}
 	except Exception as e:
@@ -189,15 +162,13 @@ def verify_mor_pos_invoice(pos_invoice_name=None, irn=None):
 
 
 @frappe.whitelist()
-def cancel_mor_pos_invoice(pos_invoice_name, cancellation_reasons="Mistake", remark=""):
-	"""Cancel a registered MoR invoice (single) using the EIMS Invoice
-	Cancellation doctype."""
+def cancel_mor_pos_invoice(pos_invoice_name, cancellation_reasons="Order cancelled", remark=""):
+	"""Cancel a registered MoR POS Invoice (single) using the EIMS Invoice
+	Cancellation doctype. The POS Invoice is cancelled directly — no
+	Sales Invoice is involved."""
 	try:
 		_ensure_pos_mor_fields()
-		si = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_sales_invoice")
-		irn = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_mor_irn") or (
-			frappe.db.get_value("Sales Invoice", si, "custom_irn") if si else None
-		)
+		irn = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_mor_irn") or frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_irn")
 		if not irn:
 			return {"status": "error", "message": _("No IRN found — invoice was never registered.")}
 
@@ -205,7 +176,7 @@ def cancel_mor_pos_invoice(pos_invoice_name, cancellation_reasons="Mistake", rem
 			{
 				"doctype": "EIMS Invoice Cancellation",
 				"is_bulk_cancellation": 0,
-				"sales_invoice": si,
+				"pos_invoice": pos_invoice_name,
 				"irn": irn,
 				"cancellation_reasons": cancellation_reasons,
 				"remark": remark or f"Cancelled from POS: {pos_invoice_name}",
@@ -224,6 +195,419 @@ def cancel_mor_pos_invoice(pos_invoice_name, cancellation_reasons="Mistake", rem
 
 
 @frappe.whitelist()
+def register_sales_invoice(sales_invoice):
+	"""MoR task (desk Sales Invoice): register a submitted Sales Invoice
+	with the MoR. Resends reuse the invoice's existing document number."""
+	try:
+		si = frappe.get_doc("Sales Invoice", sales_invoice)
+		if si.docstatus != 1:
+			return {"status": "error", "message": _("Only submitted Sales Invoices can be registered with MoR.")}
+		if si.custom_eims_status == "Registered":
+			return {"status": "ok", "result": {"status": "Transmitted", "message": "Already Registered"}, "irn": si.custom_irn, "eims_status": "Registered"}
+
+		from ethiotel_pos.eims_connector import EIMSConnector
+
+		res = EIMSConnector().submit_single_invoice(sales_invoice)
+		si.reload()
+		return {
+			"status": "ok",
+			"result": res,
+			"irn": si.custom_irn,
+			"eims_status": si.custom_eims_status or res.get("status"),
+		}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice registration error")
+		return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist()
+def verify_sales_invoice(sales_invoice, irn=None):
+	"""MoR task (desk Sales Invoice): verify a registered invoice via the
+	EIMS Invoice Verification doctype."""
+	try:
+		irn = irn or frappe.db.get_value("Sales Invoice", sales_invoice, "custom_irn")
+		if not irn:
+			return {"status": "error", "message": _("Invoice has no IRN — register it with MoR first.")}
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "EIMS Invoice Verification",
+				"select_registered_invoices": sales_invoice,
+				"irn": irn.strip(),
+			}
+		)
+		doc.insert(ignore_permissions=True)
+		res = doc.trigger_remote_verification()
+		return {"status": "ok", "result": res, "irn": irn}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice verification error")
+		return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist()
+def cancel_sales_invoice(sales_invoice, cancellation_reasons="Order cancelled", remark=""):
+	"""MoR task (desk Sales Invoice): cancel a registered invoice via the
+	EIMS Invoice Cancellation doctype."""
+	try:
+		irn = frappe.db.get_value("Sales Invoice", sales_invoice, "custom_irn")
+		if not irn:
+			return {"status": "error", "message": _("No IRN found — invoice was never registered with MoR.")}
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "EIMS Invoice Cancellation",
+				"is_bulk_cancellation": 0,
+				"sales_invoice": sales_invoice,
+				"irn": irn,
+				"cancellation_reasons": cancellation_reasons,
+				"remark": remark or f"Cancelled from Sales Invoice: {sales_invoice}",
+			}
+		)
+		doc.insert(ignore_permissions=True)
+		res = doc.trigger_remote_cancellation()
+		return {"status": "ok", "result": res, "irn": irn}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice cancellation error")
+		return {"status": "error", "message": str(e)}
+
+
+def _mor_registered_total(inv):
+	"""Exact invoice total as registered with the MoR. Prefers the value
+	stored at registration time; recomputes it from the payload builder
+	for invoices registered before that field existed."""
+	stored = flt(inv.get("custom_mor_total_value") or 0.0)
+	if stored:
+		return stored
+	try:
+		from ethiotel_pos.eims_connector import EIMSConnector
+
+		connector = EIMSConnector()
+		doc_num = int(inv.get("custom_document_number") or 0) or connector._peek_next_document_number()
+		payload = connector.build_invoice_payload(inv, override_doc_num=doc_num)
+		return flt(payload["ValueDetails"]["TotalValue"])
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR total recompute failed")
+		return flt(inv.grand_total)
+
+
+def _build_invoice_receipt(invoice_name, doctype="Sales Invoice"):
+	"""Create an EIMS Invoice Receipt document covering a registered
+	Sales Invoice or POS Invoice (populated directly from the invoice —
+	no Payment Entry)."""
+	inv = frappe.get_doc(doctype, invoice_name)
+	if inv.docstatus != 1 or not inv.custom_irn:
+		frappe.throw(_("Invoice is not registered with MoR — no IRN found."))
+
+	settings = frappe.get_single("EIMS Setting")
+	default_client = None
+	if settings.get("client_data_list"):
+		for row in settings.client_data_list:
+			if row.is_default == 1:
+				try:
+					default_client = frappe.get_doc(row.doctype, row.name)
+				except Exception:
+					default_client = None
+				break
+
+	existing = frappe.db.sql(
+		"""
+		SELECT parent FROM `tabEIMS Invoice Receipt Reference`
+		WHERE (sales_invoice = %s OR pos_invoice = %s) AND docstatus < 2
+		ORDER BY parent LIMIT 1
+		""",
+		(invoice_name, invoice_name),
+	)
+	if existing:
+		receipt = frappe.get_doc("EIMS Invoice Receipt", existing[0][0])
+		if receipt.eims_status != "Active":
+			# Refresh stale amounts (receipts created before exact
+			# registered totals were stored) so MoR accepts the retry.
+			total_amount = _mor_registered_total(inv)
+			receipt.collected_amount = total_amount
+			for row in receipt.invoices_covered or []:
+				if row.invoice_irn == inv.custom_irn:
+					row.payment_coverage = "FULL"
+					row.invoice_paid_amount = total_amount
+					row.total_amount = total_amount
+					row.remaining_amount = 0.0
+			receipt.save(ignore_permissions=True)
+			frappe.db.commit()
+		return receipt
+
+	receipt = frappe.new_doc("EIMS Invoice Receipt")
+	doc_num = int(inv.custom_document_number or 0)
+	total_amount = _mor_registered_total(inv)
+	receipt.receipt_number = f"RCP-{doc_num if doc_num else inv.name}"
+	receipt.receipt_type = "Sales Receipts"
+	receipt.receipt_date = now_datetime()
+	receipt.receipt_counter = doc_num
+	receipt.eims_rrn = inv.custom_irn
+	receipt.eims_status = "Pending"
+	receipt.party_type = "Customer"
+	receipt.party = inv.customer
+	receipt.party_name = inv.customer_name
+	receipt.mode_of_payment = "CASH"
+	if inv.payments:
+		mop = (inv.payments[0].mode_of_payment or "CASH").upper()
+		receipt.mode_of_payment = mop if mop in ("CASH", "ADVANCE", "CREDIT") else "CASH"
+	receipt.collected_amount = total_amount
+	receipt.currency = inv.currency
+	receipt.collector_name = inv.owner or "Cashier"
+	receipt.seller_tin = settings.get("seller_tin") or ""
+	if default_client:
+		receipt.source_system_type = default_client.get("system_type")
+		receipt.source_system_no = default_client.get("system_number")
+	covered_row = {
+		"invoice_irn": inv.custom_irn,
+		"payment_coverage": "FULL",
+		"invoice_paid_amount": total_amount,
+		"discount_amount": float(inv.discount_amount or 0.0),
+		"remaining_amount": 0.0,
+		"total_amount": total_amount,
+	}
+	if doctype == "POS Invoice":
+		covered_row["pos_invoice"] = inv.name
+	else:
+		covered_row["sales_invoice"] = inv.name
+	receipt.append("invoices_covered", covered_row)
+	receipt.insert(ignore_permissions=True)
+	frappe.db.commit()
+	return receipt
+
+
+@frappe.whitelist()
+def get_invoice_receipt(sales_invoice):
+	"""MoR task (desk Sales Invoice): generate an EIMS Invoice Receipt for a
+	registered invoice and authorize it with MoR. If an Active receipt
+	already exists it is returned as-is (no duplicate remote call)."""
+	try:
+		receipt = _build_invoice_receipt(sales_invoice)
+		if receipt.eims_status == "Active":
+			return {
+				"status": "ok",
+				"already_active": True,
+				"receipt_name": receipt.name,
+				"rrn": receipt.eims_rrn,
+				"html": receipt.compile_receipt_html(),
+			}
+		res = receipt.trigger_remote_receipt_generation()
+		return {"status": "ok", "receipt_name": receipt.name, "result": res}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR receipt generation error")
+		return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist()
+def get_pos_receipt(pos_invoice_name):
+	"""MoR task (POS page): generate an EIMS Invoice Receipt for a POS
+	Invoice directly (no Sales Invoice involved)."""
+	try:
+		_ensure_pos_mor_fields()
+		pos = frappe.get_doc("POS Invoice", pos_invoice_name)
+		if pos.docstatus != 1 or not (pos.custom_irn or pos.custom_mor_irn):
+			return {"status": "error", "message": _("POS Invoice has not been registered with MoR yet.")}
+		receipt = _build_invoice_receipt(pos_invoice_name, "POS Invoice")
+		if receipt.eims_status == "Active":
+			return {
+				"status": "ok",
+				"already_active": True,
+				"receipt_name": receipt.name,
+				"rrn": receipt.eims_rrn,
+				"html": receipt.compile_receipt_html(),
+			}
+		res = receipt.trigger_remote_receipt_generation()
+		return {"status": "ok", "receipt_name": receipt.name, "result": res}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR POS receipt error")
+		return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist()
+def get_forkiva_receipt(pos_invoice_name):
+	"""Compact customer receipt: the Forkiva Sales Receipt print format
+	rendered with the MoR QR code and IRN (when the invoice is
+	registered). Returns standalone HTML including the format CSS."""
+	try:
+		pos = frappe.get_doc("POS Invoice", pos_invoice_name)
+		if pos.docstatus != 1:
+			return {"status": "error", "message": _("POS Invoice is not submitted yet.")}
+		body = frappe.get_print(
+			"POS Invoice",
+			pos_invoice_name,
+			print_format="Forkiva Sales Receipt",
+			no_letterhead=1,
+		)
+		css = frappe.db.get_value("Print Format", "Forkiva Sales Receipt", "css") or ""
+		return {"status": "ok", "html": f"<style>{css}</style>{_clean_print_html(body)}"}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 Forkiva receipt error")
+		return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist()
+def queue_mor_registration(pos_invoice_name):
+	"""Fire-and-forget: hand the invoice to a background worker which
+	registers it with MoR and pre-renders the light (Forkiva) receipt so
+	the cashier never waits on MoR at the counter."""
+	try:
+		pos = frappe.get_doc("POS Invoice", pos_invoice_name)
+		if pos.docstatus != 1:
+			return {"status": "error", "message": _("Only submitted POS Invoices can be queued.")}
+		frappe.enqueue(
+			"ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos._register_and_prepare_receipt",
+			queue="short",
+			timeout=300,
+			pos_invoice_name=pos_invoice_name,
+			now=frappe.flags.in_test,
+		)
+		return {"status": "queued"}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR queue error")
+		return {"status": "error", "message": str(e)}
+
+
+def _register_and_prepare_receipt(pos_invoice_name):
+	"""Background job: register with MoR (unless already registered), then
+	pre-render and store the light customer receipt for instant access."""
+	try:
+		_ensure_pos_mor_fields()
+		pos = frappe.get_doc("POS Invoice", pos_invoice_name)
+		if pos.docstatus != 1:
+			return
+		if pos.custom_eims_status != "Registered":
+			from ethiotel_pos.eims_connector import EIMSConnector
+
+			EIMSConnector().submit_single_invoice(pos_invoice_name)
+			frappe.db.commit()
+		_prepare_light_receipt(pos_invoice_name)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Background MoR registration failed")
+
+
+def _clean_print_html(raw_html):
+	"""frappe.get_print() returns a FULL HTML document (head/body/scripts).
+	Dialogs need only the printable fragment: extract the <body> content,
+	drop every <script>, and keep any <style> blocks so the format still
+	renders styled."""
+	import re
+
+	body_match = re.search(r"<body[^>]*>([\s\S]*)</body>", raw_html, re.I)
+	body = body_match.group(1) if body_match else raw_html
+	body = re.sub(r"<script[\s\S]*?</script>", "", body, flags=re.I)
+	styles = "".join(re.findall(r"<style[^>]*>([\s\S]*?)</style>", raw_html, re.I))
+	return f"<style>{styles}</style>{body}"
+
+
+def _prepare_light_receipt(pos_invoice_name):
+	"""Render the compact Forkiva receipt (with MoR QR + IRN when
+	registered) and store it on the invoice for later one-click printing."""
+	body = frappe.get_print(
+		"POS Invoice",
+		pos_invoice_name,
+		print_format="Forkiva Sales Receipt",
+		no_letterhead=1,
+	)
+	css = frappe.db.get_value("Print Format", "Forkiva Sales Receipt", "css") or ""
+	frappe.db.set_value(
+		"POS Invoice",
+		pos_invoice_name,
+		"custom_light_receipt_html",
+		f"<style>{css}</style>{_clean_print_html(body)}",
+		update_modified=False,
+	)
+	frappe.db.commit()
+
+
+@frappe.whitelist()
+def get_light_receipt(pos_invoice_name):
+	"""Instant light (Forkiva) receipt for walk-in customers — served from
+	the pre-rendered copy when available, rendered on demand otherwise."""
+	try:
+		pos = frappe.get_doc("POS Invoice", pos_invoice_name)
+		if pos.docstatus != 1:
+			return {"status": "error", "message": _("POS Invoice is not submitted yet.")}
+		html = pos.get("custom_light_receipt_html")
+		if not html:
+			_prepare_light_receipt(pos_invoice_name)
+			html = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_light_receipt_html")
+		# Sanitize at serve time too — receipts stored before the fix may
+		# still contain full-document markup. Receipts stored before the
+		# big-QR / verification-link update are re-rendered once.
+		stale = ("<script" in html.lower() or "<body" in html.lower()
+			or "portal.mor.gov.et" not in html.lower())
+		if html and stale:
+			if "<script" in html.lower() or "<body" in html.lower():
+				html = _clean_print_html(html)
+				frappe.db.set_value(
+					"POS Invoice", pos_invoice_name, "custom_light_receipt_html", html, update_modified=False
+				)
+				frappe.db.commit()
+			else:
+				_prepare_light_receipt(pos_invoice_name)
+				html = frappe.db.get_value("POS Invoice", pos_invoice_name, "custom_light_receipt_html")
+		return {
+			"status": "ok",
+			"html": html,
+			"registered": bool(pos.custom_irn or pos.custom_mor_irn),
+			"eims_status": pos.custom_eims_status or "Not Submitted",
+		}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 light receipt error")
+		return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist()
+def get_mor_invoices(status="", search_term="", limit=50, offset=0):
+	"""List submitted POS Invoices with their MoR status for the MoR
+	workspace (filtered by custom_eims_status)."""
+	try:
+		_ensure_pos_mor_fields()
+	except Exception:
+		frappe.db.rollback()
+	cond = "docstatus = 1"
+	params = []
+	st = (status or "").strip()
+	if st and st != "All":
+		cond += " AND custom_eims_status = %s"
+		params.append(st)
+	if search_term:
+		cond += " AND (name LIKE %s OR customer LIKE %s OR customer_name LIKE %s)"
+		params += [f"%{search_term}%", f"%{search_term}%", f"%{search_term}%"]
+	rows = frappe.db.sql(
+		f"""
+		SELECT name, customer, customer_name, grand_total, net_total, currency,
+		       total_taxes_and_charges, posting_date,
+		       ifnull(custom_document_number, 0) AS custom_document_number,
+		       ifnull(custom_eims_status, '') AS eims_status,
+		       ifnull(custom_irn, ifnull(custom_mor_irn, '')) AS mor_irn,
+		       ifnull(custom_sales_invoice, '') AS sales_invoice
+		FROM `tabPOS Invoice`
+		WHERE {cond}
+		ORDER BY posting_date DESC, creation DESC
+		LIMIT %s OFFSET %s
+		""",
+		params + [cint(limit), cint(offset)],
+		as_dict=True,
+	)
+
+	stats = {"Registered": 0, "Pending": 0, "Failed": 0, "Cancelled": 0, "Not Submitted": 0}
+	for row in frappe.db.sql(
+		"""
+		SELECT ifnull(custom_eims_status, 'Not Submitted') AS st, COUNT(*) AS n
+		FROM `tabPOS Invoice`
+		WHERE docstatus = 1
+		GROUP BY ifnull(custom_eims_status, 'Not Submitted')
+		""",
+		as_dict=True,
+	):
+		key = (row.st or "Not Submitted").strip() or "Not Submitted"
+		if key in stats:
+			stats[key] = row.n
+
+	return {"invoices": rows, "stats": stats}
+
+
+@frappe.whitelist()
 def check_opening_entry(user):
 	"""
 	Find the cashier's currently-open shift. A shift stays open until the
@@ -233,7 +617,7 @@ def check_opening_entry(user):
 	"""
 	return frappe.db.sql(
 		"""
-		SELECT name, company, pos_profile, period_start_date
+		SELECT name, company, pos_profile, period_start_date, taxes_and_charges
 		FROM `tabPOS Opening Entry`
 		WHERE user = %s
 		  AND docstatus = 1
@@ -247,7 +631,71 @@ def check_opening_entry(user):
 
 @frappe.whitelist()
 def get_pos_profile_data(pos_profile):
-	return frappe.get_doc("POS Profile", pos_profile).as_dict()
+	data = frappe.get_doc("POS Profile", pos_profile).as_dict()
+	# Only offer payment methods the POS can actually send to MoR
+	# (CASH / ADVANCE / CREDIT per rule 7022) and that exist on the profile.
+	from ethiotel_pos.eims_connector import resolve_mor_payment_mode
+
+	data["payments"] = [
+		p for p in (data.get("payments") or [])
+		if resolve_mor_payment_mode(p.get("mode_of_payment"))
+	]
+	return data
+
+
+@frappe.whitelist()
+def get_opening_payment_modes(pos_profile):
+	"""MoR-valid payment modes configured on a POS Profile — used by the
+	opening-shift dialog so cashiers only see methods that can be sent to
+	MoR (rule 7022)."""
+	from ethiotel_pos.eims_connector import resolve_mor_payment_mode
+
+	profile = frappe.get_doc("POS Profile", pos_profile)
+	modes = []
+	for p in profile.payments or []:
+		mode = p.mode_of_payment
+		if mode and resolve_mor_payment_mode(mode) and mode not in modes:
+			modes.append(mode)
+	return modes
+
+
+@frappe.whitelist()
+def get_tax_templates():
+	"""Enabled tax templates with their primary tax rate, plus the current
+	EIMS Setting default — used by the sale workspace tax picker."""
+	templates = frappe.db.sql(
+		"SELECT name FROM `tabSales Taxes and Charges Template` WHERE disabled = 0 ORDER BY name",
+		as_dict=True,
+	)
+	result = []
+	for t in templates:
+		doc = frappe.get_doc("Sales Taxes and Charges Template", t.name)
+		tax_row = doc.get("taxes")[0] if doc.get("taxes") else None
+		result.append(
+			{
+				"name": t.name,
+				"rate": tax_row.rate if tax_row else 0,
+				"account_head": tax_row.account_head if tax_row else None,
+			}
+		)
+	return {
+		"templates": result,
+		"current": frappe.get_single("EIMS Setting").get("default_taxes_and_charges_template"),
+	}
+
+
+@frappe.whitelist()
+def set_default_tax_template(tax_template=None):
+	"""Persist the cashier's tax template choice onto the EIMS Setting so it
+	becomes the default for future shifts/invoices."""
+	if tax_template and not frappe.db.exists("Sales Taxes and Charges Template", tax_template):
+		frappe.throw(f"Invalid tax template: {tax_template}")
+
+	settings = frappe.get_single("EIMS Setting")
+	settings.default_taxes_and_charges_template = tax_template or None
+	settings.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"status": "ok", "default_taxes_and_charges_template": settings.default_taxes_and_charges_template}
 
 
 @frappe.whitelist()
@@ -712,14 +1160,9 @@ def get_sales_invoices(search_term="", status="", limit=50, from_date=None, to_d
 
 @frappe.whitelist()
 def make_sales_invoice_from_pos(pos_invoice_name):
-	"""Convert a submitted POS Invoice into a Sales Invoice (no MoR
-	registration yet). Idempotent — reuses an existing conversion."""
-	try:
-		si_name = _convert_pos_invoice_to_sales_invoice(pos_invoice_name)
-		return {"status": "ok", "sales_invoice": si_name}
-	except Exception as e:
-		frappe.log_error(frappe.get_traceback(), "make_sales_invoice_from_pos failed")
-		return {"status": "error", "message": str(e)}
+	"""POS Invoices are registered with MoR directly and are never converted
+	to Sales Invoices."""
+	return {"status": "error", "message": _("POS Invoices are no longer converted to Sales Invoices.")}
 
 
 @frappe.whitelist()
@@ -761,6 +1204,25 @@ def get_sales_report(from_date=None, to_date=None, pos_profile=None):
 	}
 
 
+def _ensure_mop_mor_field():
+	"""Create the MoR Payment Mode classification field on Mode of Payment
+	on first use (avoids a full migrate in this environment)."""
+	if frappe.get_meta("Mode of Payment").get_field("custom_mor_mode"):
+		return
+	frappe.get_doc(
+		{
+			"doctype": "Custom Field",
+			"dt": "Mode of Payment",
+			"fieldname": "custom_mor_mode",
+			"fieldtype": "Select",
+			"label": "MoR Payment Mode",
+			"options": "\nCASH\nADVANCE\nCREDIT",
+			"insert_after": "type",
+		}
+	).insert(ignore_permissions=True)
+	frappe.db.commit()
+
+
 @frappe.whitelist()
 def save_held_order(doc):
 	"""Persist a POS invoice as a DRAFT (held order). Returns the doc name."""
@@ -775,6 +1237,64 @@ def save_held_order(doc):
 	doc["is_pos"] = 1
 	doc["docstatus"] = 0
 
+	# Validate the payment methods BEFORE the invoice exists — MoR rejects
+	# registrations whose payment mode is not CASH / ADVANCE / CREDIT
+	# (rule 7022), so catch it here while the cashier can still fix it.
+	try:
+		_ensure_mop_mor_field()
+	except Exception:
+		frappe.db.rollback()
+	from ethiotel_pos.eims_connector import resolve_mor_payment_mode
+
+	for pay in doc.get("payments") or []:
+		mode_name = (pay.get("mode_of_payment") or "").strip()
+		if mode_name and not resolve_mor_payment_mode(mode_name):
+			frappe.throw(
+				f"Payment method <b>{mode_name}</b> cannot be sent to MoR. "
+				f"MoR accepts only CASH, ADVANCE or CREDIT. Ask your administrator "
+				f"to open <a href='/app/mode-of-payment/{mode_name}'>{mode_name}</a> "
+				f"and set <b>MoR Payment Mode</b>.",
+				title="Unsupported Payment Method"
+			)
+
+	# Resolve the tax template for this order: the payload wins, otherwise
+	# fall back to the cashier's open shift, then the EIMS Setting default,
+	# then the POS Profile. Always carry the chosen template onto the invoice
+	# and, when no tax rows were sent, materialise them from the template so
+	# ERPNext calculates taxes during insert (POS invoices skip the default
+	# tax-master auto-application).
+	tax_template = doc.get("taxes_and_charges")
+	if not tax_template:
+		opening = frappe.db.sql(
+			"""
+			SELECT taxes_and_charges
+			FROM `tabPOS Opening Entry`
+			WHERE user = %s AND docstatus = 1
+			  AND (pos_closing_entry = '' OR pos_closing_entry IS NULL)
+			ORDER BY period_start_date DESC
+			LIMIT 1
+			""",
+			frappe.session.user,
+			as_dict=True,
+		)
+		if opening and opening[0].taxes_and_charges:
+			tax_template = opening[0].taxes_and_charges
+	if not tax_template:
+		tax_template = frappe.get_single("EIMS Setting").get("default_taxes_and_charges_template")
+	if not tax_template:
+		pos_profile_tax = frappe.db.get_value("POS Profile", doc.get("pos_profile"), "taxes_and_charges")
+		tax_template = pos_profile_tax
+
+	if tax_template:
+		doc["taxes_and_charges"] = tax_template
+		if not doc.get("taxes"):
+			from erpnext.controllers.accounts_controller import get_taxes_and_charges
+
+			doc["taxes"] = get_taxes_and_charges("Sales Taxes and Charges Template", tax_template) or []
+
+	if not doc.get("customer"):
+		doc["customer"] = _get_or_create_walk_in_customer(doc.get("company"))
+
 	pos_inv = frappe.get_doc(doc)
 	pos_inv.flags.ignore_permissions = True
 	pos_inv.insert(ignore_permissions=True, ignore_mandatory=False)
@@ -785,6 +1305,8 @@ def save_held_order(doc):
 @frappe.whitelist()
 def submit_invoice(name):
 	doc = frappe.get_doc("POS Invoice", name)
+	if not doc.customer:
+		doc.customer = _get_or_create_walk_in_customer(doc.company)
 	doc.flags.ignore_permissions = True
 	if doc.docstatus == 0:
 		doc.submit()
@@ -1092,7 +1614,24 @@ def save_offline_order(order, ref):
 	frappe.db.set_value(
 		"POS Invoice", pos_inv.name, "remarks", "Synced from offline queue: {0}".format(ref)
 	)
-	return {"status": "ok", "invoice_name": pos_inv.name, "grand_total": pos_inv.grand_total}
+
+	# Auto-register with MoR right after submission, mirroring the online
+	# charge flow. A failure here must not fail the sync — the invoice can
+	# be registered later from the MoR workspace.
+	mor = {"irn": None, "registered": False}
+	try:
+		reg = register_with_mor(pos_inv.name)
+		if reg.get("status") == "ok" and reg.get("irn"):
+			mor = {"irn": reg.get("irn"), "registered": True}
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "Offline order MoR registration failed")
+
+	return {
+		"status": "ok",
+		"invoice_name": pos_inv.name,
+		"grand_total": pos_inv.grand_total,
+		"mor": mor,
+	}
 
 
 @frappe.whitelist()
@@ -1155,7 +1694,14 @@ def close_shift(pos_opening):
 	opening = frappe.get_doc("POS Opening Entry", pos_opening)
 	closing = make_closing_entry_from_opening(opening)
 	closing.flags.ignore_permissions = True
+	# Insert + commit the closing entry BEFORE submit(). on_submit runs
+	# consolidate_pos_invoices which creates a POS Invoice Merge Log linked
+	# to this closing entry; that link validation cannot see the uncommitted
+	# row (separate read connection) and raises LinkValidationError.
+	closing.insert()
+	frappe.db.commit()
 	closing.submit()
+	frappe.db.commit()
 	closing.update_opening_entry()
 	frappe.db.commit()
 
@@ -1168,7 +1714,7 @@ def close_shift(pos_opening):
 		"period_end_date": closing.period_end_date,
 	}
 @frappe.whitelist()
-def create_opening_voucher(pos_profile, company, balance_details):
+def create_opening_voucher(pos_profile, company, balance_details, taxes_and_charges=None):
 	balance_details = json.loads(balance_details)
 
 	new_pos_opening = frappe.get_doc(
@@ -1179,6 +1725,7 @@ def create_opening_voucher(pos_profile, company, balance_details):
 			"user": frappe.session.user,
 			"pos_profile": pos_profile,
 			"company": company,
+			"taxes_and_charges": taxes_and_charges or None,
 		}
 	)
 	new_pos_opening.set("balance_details", balance_details)

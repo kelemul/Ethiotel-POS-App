@@ -1,26 +1,27 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{select_registered_invoices}",
+ "autoname": "format:VER-{irn}",
  "creation": "2026-06-10 11:47:20.541589",
  "doctype": "DocType",
  "engine": "InnoDB",
- "field_order": [
-  "select_registered_invoices",
-  "irn",
-  "verified_at",
-  "column_break_irez",
-  "verification_status",
-  "mor_doc_number",
-  "buyer_tin",
-  "section_break_zzzc",
-  "total_value",
-  "section_break_groo",
-  "verification_summary",
-  "exception_logs_section",
-  "error_logs",
-  "report_data"
- ],
+"field_order": [
+   "select_registered_invoices",
+   "pos_invoice",
+   "irn",
+   "verified_at",
+   "column_break_irez",
+   "verification_status",
+   "mor_doc_number",
+   "buyer_tin",
+   "section_break_zzzc",
+   "total_value",
+   "section_break_groo",
+   "verification_summary",
+   "exception_logs_section",
+   "error_logs",
+   "report_data"
+  ],
  "fields": [
   {
    "fetch_from": "select_registered_invoices.custom_irn",
@@ -100,12 +101,17 @@
    "report_hide": 1
   },
   {
+   "fieldname": "pos_invoice",
+   "fieldtype": "Link",
+   "label": "POS Invoice",
+   "options": "POS Invoice"
+  },
+  {
    "fieldname": "select_registered_invoices",
    "fieldtype": "Link",
    "label": "Select Registered Invoices",
    "link_filters": "[[\"Sales Invoice\",\"custom_eims_status\",\"in\",[\"Registered\",\"Cancelled\",null,\"Failed\",null]]]",
-   "options": "Sales Invoice",
-   "reqd": 1
+   "options": "Sales Invoice"
   }
  ],
  "grid_page_length": 50,

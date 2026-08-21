@@ -3,7 +3,7 @@
  * ============================================
  * Injects Ethio Telecom brand colours into the Frappe v15 desk.
  * Uses [data-theme]-prefixed CSS to win specificity against Frappe's
- * bundled SCSS. Also handles POSAwesome Vuetify theme override.
+ * bundled SCSS. Also handles Ethiotel_POS Vuetify theme override.
  */
 
 (function () {
@@ -279,7 +279,7 @@
       "  font-weight: 600 !important;",
       "}",
 
-      /* --- POSAwesome Vuetify overrides (scoped to tele-pos route) --- */
+      /* --- Ethiotel_POS Vuetify overrides (scoped to tele-pos route) --- */
       '[data-theme] body[data-page-route="tele-pos"] {',
       "  --v-theme-primary: 141, 198, 63 !important;",
       "  --v-theme-secondary: 0, 114, 188 !important;",

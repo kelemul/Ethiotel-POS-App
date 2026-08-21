@@ -44,12 +44,12 @@ erpnext.POSV2.Shell = class {
 		// register workspaces
 		this.workspaces.register("sale", erpnext.POSV2.SaleWorkspace);
 		this.workspaces.register("checkin", erpnext.POSV2.CheckinWorkspace);
-		this.workspaces.register("invoices", erpnext.POSV2.InvoicesWorkspace);
 		this.workspaces.register("held", erpnext.POSV2.HeldOrdersWorkspace);
 		this.workspaces.register("dashboard", erpnext.POSV2.ShiftDashboardWorkspace);
 		this.workspaces.register("customers", erpnext.POSV2.CustomerWorkspace);
 		this.workspaces.register("returns", erpnext.POSV2.ReturnsWorkspace);
 		this.workspaces.register("reports", erpnext.POSV2.ReportsWorkspace);
+		this.workspaces.register("mor", erpnext.POSV2.MoRWorkspace);
 		this.workspaces.register("settings", erpnext.POSV2.SettingsWorkspace);
 
 		this.bind_topbar();
@@ -69,6 +69,9 @@ erpnext.POSV2.Shell = class {
 		this.$main.find(".etv2-home-btn").on("click", () => {
 			window.location.href = "/app";
 		});
+		this.$main.find(".etv2-settings-btn").on("click", () => {
+			this.workspaces.show("settings");
+		});
 	}
 
 	check_opening_entry() {
@@ -82,8 +85,9 @@ erpnext.POSV2.Shell = class {
 				this.pos_opening = entry.name;
 				this.pos_profile = entry.pos_profile;
 				this.company = entry.company;
-				this.pos_opening_time = entry.period_start_date;
-				this.show_shift_chip();
+this.pos_opening_time = entry.period_start_date;
+			this.tax_template = entry.taxes_and_charges || null;
+			this.show_shift_chip();
 				return this.load_profile();
 			}
 			return this.open_shift_dialog();
@@ -94,6 +98,9 @@ erpnext.POSV2.Shell = class {
 		const $chip = this.$main.find(".etv2-shift-chip");
 		$chip.removeClass("etv2-shift-chip-hidden");
 		$chip.find(".etv2-shift-chip-text").text(`${__("Shift open")} · ${frappe.datetime.str_to_user(this.pos_opening_time)}`);
+		if (this.sidebar) {
+			this.sidebar.set_shift_time(`${__("Open")} · ${frappe.datetime.str_to_user(this.pos_opening_time)}`);
+		}
 	}
 
 	load_profile() {
@@ -103,11 +110,14 @@ erpnext.POSV2.Shell = class {
 			args: { pos_profile: this.pos_profile },
 		}).then((r) => {
 			const profile = r.message;
-			this.settings = profile;
-			this.price_list = profile.selling_price_list;
-			this.warehouse = profile.warehouse || profile.set_warehouse;
-			this.customer_groups = (profile.customer_groups || []).map((g) => g.name);
-			this.set_status_bar();
+this.settings = profile;
+		this.price_list = profile.selling_price_list;
+		this.warehouse = profile.warehouse || profile.set_warehouse;
+		this.customer_groups = (profile.customer_groups || []).map((g) => g.name);
+		if (!this.tax_template) {
+			this.tax_template = profile.taxes_and_charges || null;
+		}
+		this.set_status_bar();
 
 			// root item group
 			return frappe.call({ method: `${pv}.get_root_item_group` }).then((r2) => {
@@ -142,6 +152,13 @@ erpnext.POSV2.Shell = class {
 					onchange: () => fetch_payments(),
 				},
 				{
+					fieldname: "taxes_and_charges",
+					fieldtype: "Link",
+					label: __("Tax Template"),
+					options: "Sales Taxes and Charges Template",
+					description: __("Sales Taxes and Charges Template for this shift's invoices. Defaults to the POS Profile; overrides the EIMS Setting default."),
+				},
+				{
 					fieldname: "balance_details",
 					fieldtype: "Table",
 					label: __("Opening Balance"),
@@ -150,7 +167,7 @@ erpnext.POSV2.Shell = class {
 					reqd: 1,
 					data: [],
 					fields: [
-						{ fieldname: "mode_of_payment", fieldtype: "Link", in_list_view: 1, label: __("Mode of Payment"), options: "Mode of Payment", reqd: 1 },
+						{ fieldname: "mode_of_payment", fieldtype: "Select", in_list_view: 1, label: __("Mode of Payment"), options: [], reqd: 1 },
 						{ fieldname: "opening_amount", fieldtype: "Currency", in_list_view: 1, label: __("Opening Amount"), default: 0 },
 					],
 				},
@@ -164,7 +181,7 @@ erpnext.POSV2.Shell = class {
 				}
 				frappe.call({
 					method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.create_opening_voucher",
-					args: { pos_profile: values.pos_profile, company: values.company, balance_details: balance },
+					args: { pos_profile: values.pos_profile, company: values.company, balance_details: balance, taxes_and_charges: values.taxes_and_charges },
 					freeze: true,
 				}).then((r) => {
 					if (!r.exc) {
@@ -172,8 +189,9 @@ erpnext.POSV2.Shell = class {
 						me.pos_opening = doc.name;
 						me.pos_profile = doc.pos_profile;
 						me.company = doc.company;
-						me.pos_opening_time = doc.period_start_date;
-						dialog.hide();
+me.pos_opening_time = doc.period_start_date;
+					me.tax_template = values.taxes_and_charges || null;
+					dialog.hide();
 						me.show_shift_chip();
 						me.load_profile().then(() => {
 							me.workspaces.show("sale");
@@ -186,16 +204,66 @@ erpnext.POSV2.Shell = class {
 		function fetch_payments() {
 			const profile = dialog.fields_dict.pos_profile.get_value();
 			if (!profile) return;
-			frappe.db.get_doc("POS Profile", profile).then((doc) => {
-				dialog.fields_dict.balance_details.df.data = (doc.payments || []).map((p) => ({
-					mode_of_payment: p.mode_of_payment,
+			// Only MoR-valid modes configured on the profile (rule 7022).
+			frappe.call({
+				method: "ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos.get_opening_payment_modes",
+				args: { pos_profile: profile },
+				silent: true,
+			}).then((r) => {
+				const modes = r.message || [];
+				const mode_field = dialog.fields_dict.balance_details.df.fields.find((f) => f.fieldname === "mode_of_payment");
+				if (mode_field) {
+					mode_field.options = modes;
+				}
+				dialog.fields_dict.balance_details.df.data = modes.map((mode) => ({
+					mode_of_payment: mode,
 					opening_amount: 0,
 				}));
 				dialog.fields_dict.balance_details.grid.refresh();
+				frappe.db.get_doc("POS Profile", profile).then((doc) => {
+					// Default the shift tax template from the POS Profile (settings).
+					if (!dialog.fields_dict.taxes_and_charges.get_value() && doc.taxes_and_charges) {
+						dialog.set_value("taxes_and_charges", doc.taxes_and_charges);
+					}
+				});
 			});
 		}
 
 		dialog.show();
+	}
+
+	// shared Close Shift action — opened from the Settings workspace so the
+	// register can be locked from one place.
+	close_shift() {
+		const me = this;
+		if (!this.pos_opening) {
+			frappe.show_alert({ message: __("No active shift to close."), indicator: "orange" });
+			return;
+		}
+		frappe.confirm(
+			__("Are you sure you want to close this shift? <br><br> The POS Closing Entry will be created and submitted. You won't be able to process sales until a new shift is opened."),
+			() => {
+				const pv = this.get_pv();
+				frappe.call({
+					method: `${pv}.close_shift`,
+					args: { pos_opening: this.pos_opening },
+					freeze: true,
+					freeze_message: __("Closing Shift..."),
+				}).then((r) => {
+				if (r.message && r.message.status === "ok") {
+					frappe.show_alert({ message: __("Shift successfully closed (Entry: {0})", [r.message.closing_entry]), indicator: "green" });
+					this.pos_opening = null;
+					this.pos_profile = null;
+					this.$main.find(".etv2-shift-chip").addClass("etv2-shift-chip-hidden");
+					if (this.sidebar) this.sidebar.set_shift_time(null);
+					// no active shift left — re-gate the page on the open dialog
+					this.check_opening_entry();
+				} else {
+						frappe.show_alert({ message: __("Failed to close shift: {0}", [r.exc]), indicator: "red" });
+					}
+				});
+			}
+		);
 	}
 
 	start_clock() {

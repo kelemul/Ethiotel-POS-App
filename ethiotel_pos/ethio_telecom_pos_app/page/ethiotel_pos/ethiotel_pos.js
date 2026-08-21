@@ -19,10 +19,10 @@ frappe.pages["ethiotel-pos"].on_page_load = function (wrapper) {
 	 "ui/ethiotel_pos_dashboard.css",
 	 "ui/ethiotel_pos_orders.css",
 	 "ui/ethiotel_pos_reports.css",
+	 "ui/ethiotel_pos_mor.css",
 	 "ui/ethiotel_pos_dialogs.css",
 	 "ui/ethiotel_pos_payment.css",
 	 "ui/ethiotel_pos_checkin.css",
-	 "ui/ethiotel_pos_invoices.css",
 	 "ui/ethiotel_pos_forkiva_sale.css",
 	 "ui/ethiotel_pos_responsive.css"].forEach((f) => {
 		$('<link rel="stylesheet">').attr("href", `/assets/ethiotel_pos/css/${f}`).appendTo(document.head);
