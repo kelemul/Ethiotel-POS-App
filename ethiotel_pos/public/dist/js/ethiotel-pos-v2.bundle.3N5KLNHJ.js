@@ -1837,8 +1837,10 @@
         return;
       const me = this;
       const total = this.cart_total();
-      const modes = (this.shell.settings.payments || []).map((p) => p.mode_of_payment);
-      const default_mode = modes[0] || "Cash";
+      const pay_rows = this.shell.settings.payments || [];
+      const modes = pay_rows.map((p) => p.mode_of_payment);
+      const def_row = pay_rows.find((p) => p.default) || {};
+      const default_mode = def_row.mode_of_payment || modes[0] || "Cash";
       let quick_pay = this.quick_pay_amounts(total);
       let selected_mode = this.payment_mode || default_mode;
       const dialog = new frappe.ui.Dialog({
@@ -1899,10 +1901,8 @@
 	<button type="button" class="fk-btn-cancel fk-pay-cancel-btn">${__("Cancel")}</button>
 	<button type="button" class="fk-btn-charge fk-charge-btn">${__("Charge")}</button>
 </div>
-<button type="button" class="fk-btn-charge-print fk-charge-print-btn">${__("Charge & Print Invoice")}</button>
 <div class="fk-pay-secondary-btns">
 	<button type="button" class="fk-btn-secondary fk-checkout-hold-btn">${__("Hold")}</button>
-	<button type="button" class="fk-btn-secondary fk-checkout-print-receipt-btn">${__("Print Receipt")}</button>
 </div>
 					</div>
 				</div>
@@ -1916,10 +1916,6 @@
       $body.on("click", ".fk-checkout-hold-btn", () => {
         dialog.hide();
         this.hold_order();
-      });
-      $body.on("click", ".fk-checkout-print-receipt-btn", () => {
-        dialog.hide();
-        this.save_and_print("Forkiva Sales Receipt");
       });
       const $sum = {
         count: $body.find(".fk-sum-count"),
@@ -2048,7 +2044,6 @@
         });
       };
       $body.find(".fk-charge-btn").on("click", () => do_charge(false));
-      $body.find(".fk-charge-print-btn").on("click", () => do_charge(true));
       $body.find(".fk-pay-cancel-btn").on("click", () => dialog.hide());
       dialog.show();
     }
@@ -2072,6 +2067,35 @@
         }
       }).catch((err) => {
         console.error("MoR queue error:", err);
+      });
+      frappe.call({
+        method: `${pv}.get_light_receipt`,
+        args: { pos_invoice_name: invoice_name }
+      }).then((r) => {
+        const res = r.message || {};
+        if (!(res.status === "ok" && res.html)) {
+          return;
+        }
+        const safe = String(res.html).replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<\/?(?:html|head|body)[^>]*>/gi, "");
+        const d = new frappe.ui.Dialog({
+          title: __("Sales Receipt"),
+          size: "small",
+          primary_action_label: __("Print"),
+          primary_action: () => {
+            const w = window.open();
+            if (w) {
+              w.document.write(safe);
+              w.document.close();
+              w.focus();
+              w.print();
+            }
+            d.hide();
+          }
+        });
+        d.$body.html(safe);
+        d.show();
+      }).catch((err) => {
+        console.error("Light receipt error:", err);
       });
     }
     open_calculator(initial, on_apply) {
@@ -3483,4 +3507,4 @@
     }
   };
 })();
-//# sourceMappingURL=ethiotel-pos-v2.bundle.EXWEGAKR.js.map
+//# sourceMappingURL=ethiotel-pos-v2.bundle.3N5KLNHJ.js.map

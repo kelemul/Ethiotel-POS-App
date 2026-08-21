@@ -1249,8 +1249,10 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 		if (!doc) return;
 		const me = this;
 		const total = this.cart_total();
-		const modes = (this.shell.settings.payments || []).map((p) => p.mode_of_payment);
-		const default_mode = modes[0] || "Cash";
+		const pay_rows = this.shell.settings.payments || [];
+		const modes = pay_rows.map((p) => p.mode_of_payment);
+		const def_row = pay_rows.find((p) => p.default) || {};
+		const default_mode = def_row.mode_of_payment || modes[0] || "Cash";
 		let quick_pay = this.quick_pay_amounts(total);
 		let selected_mode = this.payment_mode || default_mode;
 		const dialog = new frappe.ui.Dialog({
@@ -1313,10 +1315,8 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 	<button type="button" class="fk-btn-cancel fk-pay-cancel-btn">${__("Cancel")}</button>
 	<button type="button" class="fk-btn-charge fk-charge-btn">${__("Charge")}</button>
 </div>
-<button type="button" class="fk-btn-charge-print fk-charge-print-btn">${__("Charge & Print Invoice")}</button>
 <div class="fk-pay-secondary-btns">
 	<button type="button" class="fk-btn-secondary fk-checkout-hold-btn">${__("Hold")}</button>
-	<button type="button" class="fk-btn-secondary fk-checkout-print-receipt-btn">${__("Print Receipt")}</button>
 </div>
 					</div>
 				</div>
@@ -1330,7 +1330,6 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 			$(e.currentTarget).addClass("active");
 		});
 		$body.on("click", ".fk-checkout-hold-btn", () => { dialog.hide(); this.hold_order(); });
-		$body.on("click", ".fk-checkout-print-receipt-btn", () => { dialog.hide(); this.save_and_print("Forkiva Sales Receipt"); });
 		// summary helper
 		const $sum = {
 			count: $body.find(".fk-sum-count"),
@@ -1475,7 +1474,6 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 		};
 
 		$body.find(".fk-charge-btn").on("click", () => do_charge(false));
-		$body.find(".fk-charge-print-btn").on("click", () => do_charge(true));
 		$body.find(".fk-pay-cancel-btn").on("click", () => dialog.hide());
 
 		dialog.show();
@@ -1483,8 +1481,8 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 
 	// ---------------------------------------------------------------
 	// After a sale is submitted: hand MoR registration + light-receipt
-	// preparation to a background worker. The cashier never waits — the
-	// receipt is printed later from the MoR Invoices page.
+	// preparation to a background worker, and immediately show the light
+	// (Forkiva) receipt so the cashier can print it right away.
 	// ---------------------------------------------------------------
 	finalize_sale_with_mor(invoice_name) {
 		const pv = this.shell.get_pv();
@@ -1506,6 +1504,37 @@ this.$el.on("click", ".fk-cats-nav-next", () => {
 			}
 		}).catch((err) => {
 			console.error("MoR queue error:", err);
+		});
+		frappe.call({
+			method: `${pv}.get_light_receipt`,
+			args: { pos_invoice_name: invoice_name },
+		}).then((r) => {
+			const res = r.message || {};
+			if (!(res.status === "ok" && res.html)) {
+				return;
+			}
+			const safe = String(res.html)
+				.replace(/<script[\s\S]*?<\/script>/gi, "")
+				.replace(/<\/?(?:html|head|body)[^>]*>/gi, "");
+			const d = new frappe.ui.Dialog({
+				title: __("Sales Receipt"),
+				size: "small",
+				primary_action_label: __("Print"),
+				primary_action: () => {
+					const w = window.open();
+					if (w) {
+						w.document.write(safe);
+						w.document.close();
+						w.focus();
+						w.print();
+					}
+					d.hide();
+				},
+			});
+			d.$body.html(safe);
+			d.show();
+		}).catch((err) => {
+			console.error("Light receipt error:", err);
 		});
 	}
 
