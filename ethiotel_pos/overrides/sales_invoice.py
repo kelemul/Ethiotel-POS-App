@@ -5,8 +5,8 @@ from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice
 class CustomSalesInvoice(SalesInvoice):
     def before_save(self):
         super().before_save()
-        if not self.disable_rounded_total:
-            frappe.throw(_("Rounded Total is required for EIRMS submission. Please ensure that 'Disable Rounded Total' is checked."))
+        # if not self.disable_rounded_total:
+        #     frappe.throw(_("Rounded Total is required for EIRMS submission. Please ensure that 'Disable Rounded Total' is checked."))
         # MoR document number is now assigned per submission (increments
         # EIMS Setting.last_document_number) via eims_connector, not at save.
         # if not self.custom_document_number or int(self.custom_document_number) == 0:
