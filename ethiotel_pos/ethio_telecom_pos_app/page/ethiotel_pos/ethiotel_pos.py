@@ -197,7 +197,11 @@ def cancel_mor_pos_invoice(pos_invoice_name, cancellation_reasons="Order cancell
 @frappe.whitelist()
 def register_sales_invoice(sales_invoice):
 	"""MoR task (desk Sales Invoice): register a submitted Sales Invoice
-	with the MoR. Resends reuse the invoice's existing document number."""
+	with the MoR. Resends reuse the invoice's existing document number.
+
+	submit_single_invoice NEVER raises for HTTP/rule failures — it returns
+	{"status": "Rule Error", "message": ...} — so we must translate its
+	verdict here, otherwise the client would toast success on rejections."""
 	try:
 		si = frappe.get_doc("Sales Invoice", sales_invoice)
 		if si.docstatus != 1:
@@ -209,11 +213,17 @@ def register_sales_invoice(sales_invoice):
 
 		res = EIMSConnector().submit_single_invoice(sales_invoice)
 		si.reload()
+
+		res_status = str(res.get("status", "")).lower() if isinstance(res, dict) else ""
+		ok = res_status in ("transmitted", "success")
 		return {
-			"status": "ok",
+			"status": "ok" if ok else "error",
 			"result": res,
+			"message": None if ok else (res.get("message") if isinstance(res, dict) else str(res)),
 			"irn": si.custom_irn,
 			"eims_status": si.custom_eims_status or res.get("status"),
+			"document_number": si.custom_document_number,
+			"qr_code_url": si.get("custom_qr_code_url"),
 		}
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice registration error")
@@ -265,19 +275,114 @@ def cancel_sales_invoice(sales_invoice, cancellation_reasons="Order cancelled", 
 		)
 		doc.insert(ignore_permissions=True)
 		res = doc.trigger_remote_cancellation()
+
+		if res.get("status") == "Cancelled":
+			frappe.db.set_value("Sales Invoice", sales_invoice, "custom_eims_status", "Cancelled", update_modified=True)
+			frappe.db.commit()
 		return {"status": "ok", "result": res, "irn": irn}
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice cancellation error")
 		return {"status": "error", "message": str(e)}
 
 
+@frappe.whitelist()
+def get_mor_details(sales_invoice):
+	"""MoR task (desk Sales Invoice): everything the MoR Details dialog
+	needs in one round-trip — registration fields, receipt and latest
+	verification references, plus item/tax breakdown."""
+	try:
+		si = frappe.get_doc("Sales Invoice", sales_invoice)
+		receipt_rows = frappe.db.sql(
+			"""
+			SELECT r.name, r.eims_rrn, r.eims_status, r.receipt_date
+			FROM `tabEIMS Invoice Receipt` r
+			JOIN `tabEIMS Invoice Receipt Reference` ref ON ref.parent = r.name
+			WHERE (ref.sales_invoice = %s OR ref.pos_invoice = %s) AND r.docstatus < 2
+			ORDER BY r.modified DESC LIMIT 1
+			""",
+			(sales_invoice, sales_invoice),
+			as_dict=True,
+		)
+		verification = None
+		if si.custom_irn:
+			vrows = frappe.db.sql(
+				"""
+				SELECT name, verification_status, verified_at
+				FROM `tabEIMS Invoice Verification`
+				WHERE irn = %s
+				ORDER BY modified DESC LIMIT 1
+				""",
+				(si.custom_irn,),
+				as_dict=True,
+			)
+			verification = vrows[0] if vrows else None
+
+		return {
+			"status": "ok",
+			"details": {
+				"name": si.name,
+				"eims_status": (si.custom_eims_status or "Not Submitted").strip(),
+				"irn": si.custom_irn or "",
+				"document_number": si.custom_document_number or "",
+				"mor_total": flt(si.get("custom_mor_total_value")),
+				"qr_code_url": si.custom_qr_code_url or "",
+				"customer": si.customer,
+				"customer_name": si.customer_name,
+				"currency": si.currency,
+				"net_total": flt(si.net_total),
+				"discount_amount": flt(si.discount_amount),
+				"total_taxes_and_charges": flt(si.total_taxes_and_charges),
+				"grand_total": flt(si.grand_total),
+				"posting_date": str(si.posting_date or ""),
+				"posting_time": str(si.posting_time or ""),
+				"owner": si.owner,
+				"items": [
+					{
+						"item_code": it.item_code,
+						"item_name": it.item_name,
+						"qty": it.qty,
+						"uom": it.uom,
+						"rate": it.rate,
+						"amount": it.amount,
+					}
+					for it in (si.items or [])
+				],
+				"taxes": [
+					{
+						"description": t.description or t.account_head,
+						"rate": t.rate,
+						"tax_amount": t.tax_amount,
+					}
+					for t in (si.taxes or [])
+				],
+			},
+			"receipt": receipt_rows[0] if receipt_rows else None,
+			"verification": verification,
+		}
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice details error")
+		return {"status": "error", "message": str(e)}
+
+
 def _mor_registered_total(inv):
 	"""Exact invoice total as registered with the MoR. Prefers the value
-	stored at registration time; recomputes it from the payload builder
-	for invoices registered before that field existed."""
+	stored at registration time; falls back to MoR's own verification
+	record (authoritative); recomputes from the payload builder only as a
+	last resort for invoices registered before both existed."""
 	stored = flt(inv.get("custom_mor_total_value") or 0.0)
 	if stored:
 		return stored
+	irn = inv.get("custom_irn")
+	if irn:
+		vrows = frappe.get_all(
+			"EIMS Invoice Verification",
+			filters={"irn": irn},
+			fields=["total_value"],
+			order_by="modified desc",
+			limit=1,
+		)
+		if vrows and flt(vrows[0].total_value):
+			return flt(vrows[0].total_value)
 	try:
 		from ethiotel_pos.eims_connector import EIMSConnector
 
@@ -375,26 +480,123 @@ def _build_invoice_receipt(invoice_name, doctype="Sales Invoice"):
 	return receipt
 
 
+def _finalize_receipt_result(receipt, res):
+	"""Idempotent handling of MoR's duplicate-receipt rejection.
+
+	When MoR answers 406 with
+	  "Receipt generated for the Invoice IRN given."
+	a receipt ALREADY exists remotely for that IRN — typically because a
+	previous attempt succeeded at MoR but failed locally (timeout, bad
+	response, crash). Retrying forever would keep failing. Instead we mark
+	the local receipt Active (it genuinely exists at MoR) and return it
+	so the UI can navigate to it."""
+	if not (isinstance(res, dict) and not res.get("success")):
+		return None
+	raw = str(res.get("message") or "")
+	if "Receipt generated for the Invoice IRN given" not in raw:
+		return None
+	if receipt.eims_status != "Active":
+		receipt.eims_status = "Active"
+		receipt.response_log = f"{receipt.response_log or ''}\n[auto-heal] {raw[:2000]}"
+		receipt.save(ignore_permissions=True)
+		frappe.db.commit()
+	return {
+		"status": "ok",
+		"already_active": True,
+		"healed_duplicate": True,
+		"receipt_name": receipt.name,
+		"rrn": receipt.eims_rrn,
+		"html": receipt.compile_receipt_html(),
+	}
+
+
 @frappe.whitelist()
 def get_invoice_receipt(sales_invoice):
-	"""MoR task (desk Sales Invoice): generate an EIMS Invoice Receipt for a
-	registered invoice and authorize it with MoR. If an Active receipt
-	already exists it is returned as-is (no duplicate remote call)."""
+	"""MoR task (desk Sales Invoice): receipts are issued whenever money is
+	received, i.e. against a SUBMITTED Payment Entry. This creates (or
+	returns) the EIMS Invoice Receipt document populated from that Payment
+	Entry and forwards the user to it — it NEVER transmits to MoR
+	automatically; authorization happens from the receipt document."""
 	try:
-		receipt = _build_invoice_receipt(sales_invoice)
-		if receipt.eims_status == "Active":
+		inv = frappe.get_doc("Sales Invoice", sales_invoice)
+		if inv.docstatus != 1:
+			return {"status": "error", "message": _("Sales Invoice {0} is not submitted.").format(sales_invoice)}
+		if not inv.custom_irn:
+			return {"status": "error", "message": _("Invoice is not registered with MoR yet — no IRN found.")}
+
+		payment_entry = _find_sales_invoice_payment(sales_invoice)
+		if not payment_entry:
 			return {
-				"status": "ok",
-				"already_active": True,
-				"receipt_name": receipt.name,
-				"rrn": receipt.eims_rrn,
-				"html": receipt.compile_receipt_html(),
+				"status": "no_payment_entry",
+				"message": _(
+					"No submitted Payment Entry found for {0}. A MoR receipt can only be issued after the payment is received and recorded."
+				).format(sales_invoice),
 			}
-		res = receipt.trigger_remote_receipt_generation()
-		return {"status": "ok", "receipt_name": receipt.name, "result": res}
+
+		receipt = _build_payment_receipt(inv, payment_entry)
+		return {
+			"status": "ok",
+			"receipt_name": receipt.name,
+			"payment_entry": payment_entry,
+			"already_active": receipt.eims_status == "Active",
+		}
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "V2 MoR receipt generation error")
 		return {"status": "error", "message": str(e)}
+
+
+def _find_sales_invoice_payment(sales_invoice):
+	"""Latest SUBMITTED Payment Entry covering this Sales Invoice."""
+	rows = frappe.get_all(
+		"Payment Entry Reference",
+		filters={"reference_doctype": "Sales Invoice", "reference_name": sales_invoice},
+		fields=["parent"],
+		order_by="creation desc",
+		limit=5,
+	)
+	for r in rows:
+		if frappe.db.get_value("Payment Entry", r.parent, "docstatus") == 1:
+			return r.parent
+	return None
+
+
+def _build_payment_receipt(inv, payment_entry):
+	"""Create (or reuse) an EIMS Invoice Receipt for a registered Sales
+	Invoice against its Payment Entry. Amounts are rebuilt from the exact
+	registered totals by fetch_payment_entry_details(); nothing is sent
+	to MoR here."""
+	existing = frappe.db.sql(
+		"""
+		SELECT parent FROM `tabEIMS Invoice Receipt Reference`
+		WHERE sales_invoice = %s AND docstatus < 2
+		ORDER BY parent LIMIT 1
+		""",
+		(inv.name,),
+	)
+	if existing:
+		receipt = frappe.get_doc("EIMS Invoice Receipt", existing[0][0])
+		if receipt.eims_status != "Active":
+			# Re-sync from the Payment Entry (exact registered totals).
+			receipt.payment_entry = payment_entry
+			receipt.fetch_payment_entry_details()
+			receipt.save(ignore_permissions=True)
+			frappe.db.commit()
+		return receipt
+
+	receipt = frappe.new_doc("EIMS Invoice Receipt")
+	doc_num = int(inv.custom_document_number or 0)
+	receipt.receipt_number = f"RCP-{doc_num if doc_num else inv.name}"
+	receipt.receipt_type = "Sales Receipts"
+	receipt.eims_status = "Pending"
+	receipt.payment_entry = payment_entry
+	receipt.remark = _("Auto-created from Payment Entry {0}").format(payment_entry)
+	receipt.insert(ignore_permissions=True)
+	# Populates party/mode/provider fields, eims_rrn, receipt_counter and
+	# invoices_covered rows with EXACT registered totals (never rounded).
+	receipt.fetch_payment_entry_details()
+	receipt.save(ignore_permissions=True)
+	frappe.db.commit()
+	return receipt
 
 
 @frappe.whitelist()
@@ -416,6 +618,9 @@ def get_pos_receipt(pos_invoice_name):
 				"html": receipt.compile_receipt_html(),
 			}
 		res = receipt.trigger_remote_receipt_generation()
+		healed = _finalize_receipt_result(receipt, res)
+		if healed:
+			return healed
 		return {"status": "ok", "receipt_name": receipt.name, "result": res}
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "V2 MoR POS receipt error")

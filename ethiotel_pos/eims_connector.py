@@ -854,7 +854,7 @@ class EIMSConnector:
 
                     qr_code_url = self._save_qr_file(invoice_name, signed_qr_base64, doctype)
 
-                    frappe.db.set_value(doctype, invoice_name, {
+                    frappe.db.set_value(doctype, invoice_name, self._filter_known_fields(doctype, {
                         "custom_irn": irn,
                         "custom_qr_code_url": qr_code_url,
                         "custom_eims_status": "Registered",
@@ -863,7 +863,7 @@ class EIMSConnector:
                         # receipt must quote these verbatim or MoR rejects
                         # it with "Invoice total amount mismatch".
                         "custom_mor_total_value": invoice_payload["ValueDetails"]["TotalValue"],
-                    }, update_modified=True)
+                    }), update_modified=True)
 
                     # Only persist the counter after MoR confirms success.
                     if doc_num > int(self.settings.last_document_number or 0):
@@ -894,11 +894,11 @@ class EIMSConnector:
                 if expected_num is not None and expected_num == doc_num and is_resend:
                     irn = self._lookup_irn_for_doc_num(doc_num)
                     if irn:
-                        frappe.db.set_value(doctype, invoice_name, {
+                        frappe.db.set_value(doctype, invoice_name, self._filter_known_fields(doctype, {
                             "custom_irn": irn,
                             "custom_eims_status": "Registered",
                             "custom_document_number": doc_num,
-                        }, update_modified=True)
+                        }), update_modified=True)
                         if doc_num > int(self.settings.last_document_number or 0):
                             self._commit_document_number(doc_num)
                         frappe.db.commit()
@@ -916,6 +916,18 @@ class EIMSConnector:
         except Exception as e:
             frappe.log_error(message=frappe.get_traceback(), title=f"EIMS System Crash: {invoice_name}")
             return {"status": "Rule Error", "message": self._friendly_network_error(e)}
+
+    @staticmethod
+    def _filter_known_fields(doctype, updates):
+        """Drop any key the target doctype doesn't have as a field.
+        Registration must survive a missing optional tracking column
+        (e.g. custom_mor_total_value on an environment where the patch
+        has not run yet) instead of crashing with a DB 1054 error."""
+        try:
+            meta = frappe.get_meta(doctype)
+            return {k: v for k, v in updates.items() if meta.has_field(k)}
+        except Exception:
+            return updates
 
     def _save_qr_file(self, invoice_name, signed_qr_base64, doctype="Sales Invoice"):
         qr_code_url = ""

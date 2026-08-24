@@ -4,7 +4,7 @@ import frappe
 from datetime import datetime
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import fmt_money
+from frappe.utils import fmt_money, flt
 from ethiotel_pos.eims_connector import EIMSConnector
 import base64
 from frappe.utils import money_in_words
@@ -65,24 +65,41 @@ class EIMSInvoiceReceipt(Document):
         self.source_system_no = default_client.system_number
 
         self.invoices_covered = []
+        # MoR validates receipt amounts against the EXACT totals stored at
+        # registration time — those can carry sub-cent decimals (VAT
+        # division), while Payment Entry reference amounts are rounded to
+        # currency precision. Sending the rounded figures triggers
+        # "Invoice total amount mismatch". Always use the registered value.
+        from ethiotel_pos.ethio_telecom_pos_app.page.ethiotel_pos.ethiotel_pos import (
+            _mor_registered_total,
+        )
+
         for ref in pe.references:
             if ref.reference_doctype == "Sales Invoice":
                 inv_doc = frappe.get_doc("Sales Invoice", ref.reference_name)
                 if not inv_doc or not inv_doc.custom_irn:
                     frappe.throw(_("Sales Invoice {0} does not have an EIRMS IRN (custom_irn) identifier.").format(ref.reference_name))
-                
+
                 self.eims_rrn = inv_doc.custom_irn
                 self.receipt_counter = inv_doc.custom_document_number
+                coverage = "FULL" if flt(ref.allocated_amount) >= flt(ref.total_amount) else "PARTIAL"
+                exact_total = _mor_registered_total(inv_doc)
                 self.append("invoices_covered", {
                     "sales_invoice": ref.reference_name,
                     "invoice_irn": inv_doc.custom_irn,
-                    "payment_coverage": "FULL" if ref.allocated_amount >= ref.total_amount else "PARTIAL",
-                    "invoice_paid_amount": ref.allocated_amount,
+                    "payment_coverage": coverage,
+                    "invoice_paid_amount": exact_total if coverage == "FULL" else ref.allocated_amount,
                     "discount_amount": float(inv_doc.discount_amount or 0.0),
-                    "remaining_amount": ref.outstanding_amount,
-                    "total_amount": ref.total_amount,
+                    "remaining_amount": 0.0 if coverage == "FULL" else ref.outstanding_amount,
+                    "total_amount": exact_total,
                     "taxable_amount": float(inv_doc.net_total or 0.0),
                 })
+
+        # Keep the receipt-level collected amount consistent with the exact
+        # rows above instead of the rounded PE paid_amount.
+        self.collected_amount = flt(
+            sum(flt(row.invoice_paid_amount) for row in self.invoices_covered)
+        )
 
     @frappe.whitelist()
     def trigger_remote_receipt_generation(self):
@@ -156,7 +173,18 @@ class EIMSInvoiceReceipt(Document):
                     self.eims_status = api_status or "Active"
 
                 self.eims_rrn = body.get("rrn") or self.eims_rrn
+                self.returned_rnn = body.get("rrn") or ""
                 self.qr_code_base64 = body.get("qr") or body.get("signedQR") or body.get("qrCode") or self.qr_code_base64
+
+                # Persist the returned RNN on every covered Sales Invoice —
+                # MoR does not support duplicate receipt generation, so any
+                # later re-fetch must look the receipt up BY RNN instead of
+                # re-submitting.
+                for row in self.invoices_covered or []:
+                    if row.sales_invoice:
+                        frappe.db.set_value(
+                            "Sales Invoice", row.sales_invoice, "custom_mor_rrn", self.returned_rnn
+                        )
                 self.response_log = json.dumps(res_data, indent=4)
                 
                 self.save()
@@ -173,6 +201,28 @@ class EIMSInvoiceReceipt(Document):
                 self.save()
                 frappe.db.commit()
                 detail = json.dumps(res_data, indent=2)
+
+                # Idempotent duplicate-receipt healing: MoR rejects a retry
+                # with "Receipt generated for the Invoice IRN given" when a
+                # receipt ALREADY exists remotely (a previous attempt reached
+                # MoR but its response was lost locally). Retrying would fail
+                # forever — mark this receipt Active instead.
+                if "Receipt generated for the Invoice IRN given" in detail:
+                    if self.eims_status != "Active":
+                        self.eims_status = "Active"
+                        self.response_log = (
+                            f"{self.response_log or ''}\n[auto-heal] duplicate-receipt rejection marked Active"
+                        )
+                        self.save()
+                        frappe.db.commit()
+                    return {
+                        "success": True,
+                        "status": self.eims_status,
+                        "healed_duplicate": True,
+                        "rrn": self.eims_rrn or "",
+                        "html": self.compile_receipt_html(),
+                    }
+
                 return {
                     "success": False,
                     "message": f"Error {response.status_code}: {detail}",

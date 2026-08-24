@@ -1,7 +1,8 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-06-11 10:29:10.641254",
+ "autoname": "format:EIMS-IR-{receipt_number}-{DD}-{MM}-{YYYY}",
+ "creation": "2026-08-19 11:53:02.185441",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -36,7 +37,9 @@
   "tab_4_tab",
   "invoices_covered",
   "receipt_tab",
+  "returned_rnn",
   "receipt_viewport",
+  "section_break_sutu",
   "qr_code_base64"
  ],
  "fields": [
@@ -71,7 +74,7 @@
   {
    "fieldname": "eims_rrn",
    "fieldtype": "Data",
-   "label": "EIRMS RRN",
+   "label": "EIRMS IRN",
    "read_only": 1
   },
   {
@@ -142,8 +145,7 @@
   {
    "fieldname": "collected_amount",
    "fieldtype": "Currency",
-   "label": "Collected Amount",
-   "read_only": 1
+   "label": "Collected Amount"
   },
   {
    "fieldname": "currency",
@@ -230,15 +232,25 @@
   {
    "fieldname": "section_break_pusb",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "returned_rnn",
+   "fieldtype": "Data",
+   "label": "returned rnn"
+  },
+  {
+   "fieldname": "section_break_sutu",
+   "fieldtype": "Section Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-03 14:15:48.047452",
+ "modified": "2026-08-24 10:54:15.888449",
  "modified_by": "Administrator",
  "module": "Ethio Telecom POS App",
  "name": "EIMS Invoice Receipt",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -256,6 +268,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "show_name_in_global_search": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
