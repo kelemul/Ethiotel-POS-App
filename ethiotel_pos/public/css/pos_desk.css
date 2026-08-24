@@ -327,7 +327,9 @@ a:hover {
 
 /* ---------- Indicators / badges ---------- */
 .indicator.green { color: var(--eims-green) !important; }
-.indicator-pill.green { background: var(--eims-green) !important; }
+.indicator-pill.green { background: var(--eims-green) !important; 
+color: #fff !important; 
+}
 .control-value {
 	color: var(--eims-green2);
 }
