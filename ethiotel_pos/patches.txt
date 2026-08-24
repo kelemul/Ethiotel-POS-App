@@ -28,4 +28,4 @@ ethiotel_pos.patches.remove_item_barcode_posa_uom
 ethiotel_pos.patches.add_pos_scale_indexes
 ethiotel_pos.patches.add_offline_sync_delta_indexes
 ethiotel_pos.patches.add_mor_fields_to_sales_invoice
-add_mor_rrn_to_sales_invoice
+ethiotel_pos.patches.add_mor_rrn_to_sales_invoice
