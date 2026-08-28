@@ -600,10 +600,7 @@ class EIMSConnector:
             _add_if_present(payload["BuyerDetails"], "Kebele", buyer_kebele)
             _add_if_present(payload["BuyerDetails"], "Locality", cust_details.get("locality"))
 
-        # MoR requires a buyer ID for every transaction type (rule 7004).
-        # Use the buyer's own ID from Customer Details when its type is one
-        # of the valid codes, otherwise fall back to a generic KID / 000000
-        # so the submission is always accepted.
+     
         if buyer_id_type in ID_TYPES and buyer_id_number:
             payload["BuyerDetails"]["IdNumber"] = buyer_id_number
             payload["BuyerDetails"]["IdType"] = buyer_id_type
@@ -637,23 +634,23 @@ class EIMSConnector:
         _add_if_present(payload["ValueDetails"], "TransactionWithholdValue", trans_wht)
 
         # DocumentDetails
-        manual_receipt_no = getattr(invoice_doc, "custom_manual_invoice_number", None)
-        _add_if_present(payload["DocumentDetails"], "ManualInvoiceNumber", manual_receipt_no)
-        reason_text = getattr(invoice_doc, "custom_reason", None)
-        _add_if_present(payload["DocumentDetails"], "Reason", reason_text)
+        # manual_receipt_no = getattr(invoice_doc, "custom_manual_invoice_number", None)
+        # _add_if_present(payload["DocumentDetails"], "ManualInvoiceNumber", manual_receipt_no)
+        # reason_text = getattr(invoice_doc, "custom_reason", None)
+        # _add_if_present(payload["DocumentDetails"], "Reason", reason_text)
 
         # ReferenceDetails
         payload["ReferenceDetails"]["PreviousIrn"] = prev_irn
-        related_doc = getattr(invoice_doc, "custom_related_document", None)
-        payload["ReferenceDetails"]["RelatedDocument"] = related_doc
-        po_number = getattr(invoice_doc, "po_no", None)
-        _add_if_present(payload["ReferenceDetails"], "PurchaseOrder", po_number)
-        contract_number = getattr(invoice_doc, "custom_contract_number", None)
-        _add_if_present(payload["ReferenceDetails"], "Contract", contract_number)
-        first_ticket = getattr(invoice_doc, "custom_first_ticket", None)
-        _add_if_present(payload["ReferenceDetails"], "FirstTicket", first_ticket)
-        last_ticket = getattr(invoice_doc, "custom_last_ticket", None)
-        _add_if_present(payload["ReferenceDetails"], "LastTicket", last_ticket)
+        # related_doc = getattr(invoice_doc, "custom_related_document", None)
+        # payload["ReferenceDetails"]["RelatedDocument"] = related_doc
+        # po_number = getattr(invoice_doc, "po_no", None)
+        # _add_if_present(payload["ReferenceDetails"], "PurchaseOrder", po_number)
+        # contract_number = getattr(invoice_doc, "custom_contract_number", None)
+        # _add_if_present(payload["ReferenceDetails"], "Contract", contract_number)
+        # first_ticket = getattr(invoice_doc, "custom_first_ticket", None)
+        # _add_if_present(payload["ReferenceDetails"], "FirstTicket", first_ticket)
+        # last_ticket = getattr(invoice_doc, "custom_last_ticket", None)
+        # _add_if_present(payload["ReferenceDetails"], "LastTicket", last_ticket)
 
         tax_type = ""
         tax_rate = 0

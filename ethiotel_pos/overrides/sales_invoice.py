@@ -21,9 +21,8 @@ class CustomSalesInvoice(SalesInvoice):
 
         allowed_tax_types = [
             "TOT10", "TOT2", "VAT15", "VWHT", "TWHT", "VATEX", 
-            "VATWH", "WHOP2", "WTHOI", "VAT0", "VWTH","WTHOI"
+            "VATWH", "WHOP2", "WTHOI", "VAT0", "VWTH","WTHOT"
         ]
-        
         for tax in self.get("taxes"):
             if tax.account_head:
                 tax_type = frappe.db.get_value("Account", tax.account_head, "account_name")
