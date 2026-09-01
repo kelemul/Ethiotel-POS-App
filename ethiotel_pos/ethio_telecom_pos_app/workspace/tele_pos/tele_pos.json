@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"cJigdSD9mh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tele POS</span>\",\"col\":12}},{\"id\":\"4D2sc3CbN3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tele POS App\",\"col\":3}},{\"id\":\"GHhQ3ILXlU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"EIRMS Settings\",\"col\":3}},{\"id\":\"nVBkn7nfDw\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Avo6EE538Q\",\"type\":\"card\",\"data\":{\"card_name\":\"POS\",\"col\":4}},{\"id\":\"Yyedt5hgvr\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"AHxV8LQ6Qd\",\"type\":\"card\",\"data\":{\"card_name\":\"MoR Tasks\",\"col\":4}}]",
+ "content": "[{\"id\":\"cJigdSD9mh\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Tele POS</span>\",\"col\":12}},{\"id\":\"4D2sc3CbN3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Tele POS App\",\"col\":3}},{\"id\":\"GHhQ3ILXlU\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"EIRMS Settings\",\"col\":3}},{\"id\":\"nVBkn7nfDw\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Avo6EE538Q\",\"type\":\"card\",\"data\":{\"card_name\":\"POS\",\"col\":4}},{\"id\":\"Yyedt5hgvr\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"AHxV8LQ6Qd\",\"type\":\"card\",\"data\":{\"card_name\":\"MoR Tasks\",\"col\":4}},{\"id\":\"m0oQ_otGS6\",\"type\":\"card\",\"data\":{\"card_name\":\"Others\",\"col\":4}}]",
  "creation": "2026-08-19 11:53:04.353047",
  "custom_blocks": [],
  "docstatus": 0,
@@ -159,9 +159,38 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Others",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Company",
+   "link_count": 0,
+   "link_to": "Company",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Account",
+   "link_count": 0,
+   "link_to": "Account",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-08-31 15:53:37.648612",
+ "modified": "2026-09-01 09:06:25.360741",
  "modified_by": "Administrator",
  "module": "Ethio Telecom POS App",
  "name": "Tele POS",

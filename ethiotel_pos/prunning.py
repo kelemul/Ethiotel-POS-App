@@ -18,7 +18,8 @@ MANIFEST_FILE = "lite_mode_lock_manifest.json"
 def get_lit_modules():
     """Safely fetch Allowed Modules dynamically to avoid import-time DB errors."""
     lit_modules = [
-        "Selling", "Ethio Telecom POS App", "Ethiotel_POS","Sales and Marketing","Buying"
+        "Selling", "Ethio Telecom POS App", 
+        "Ethiotel_POS","Sales and Marketing","Buying","Core","Accounts","Stock","Setup"
     ]
     try:
         # Include all core frappe modules by default
