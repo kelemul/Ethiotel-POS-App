@@ -196,12 +196,7 @@ def cancel_mor_pos_invoice(pos_invoice_name, cancellation_reasons="Order cancell
 
 @frappe.whitelist()
 def register_sales_invoice(sales_invoice):
-	"""MoR task (desk Sales Invoice): register a submitted Sales Invoice
-	with the MoR. Resends reuse the invoice's existing document number.
 
-	submit_single_invoice NEVER raises for HTTP/rule failures — it returns
-	{"status": "Rule Error", "message": ...} — so we must translate its
-	verdict here, otherwise the client would toast success on rejections."""
 	try:
 		si = frappe.get_doc("Sales Invoice", sales_invoice)
 		if si.docstatus != 1:
@@ -216,6 +211,23 @@ def register_sales_invoice(sales_invoice):
 
 		res_status = str(res.get("status", "")).lower() if isinstance(res, dict) else ""
 		ok = res_status in ("transmitted", "success")
+
+		wht_receipt = None
+		if ok:
+			# Automate withholding receipts: if the invoice's Taxes table
+			# contains withholding accounts (TWTH/IWTH), create the matching
+			# EIMS withholding-receipt document(s) right after registration,
+			# mirroring the sales-receipt flow (payment details from the
+			# Payment Entry). They are created but NOT auto-submitted.
+			try:
+				from ethiotel_pos.ethio_telecom_pos_app.doctype.withholding_receipt.withholding_receipt import (
+					create_withholding_receipt,
+				)
+				wht_receipt = create_withholding_receipt(sales_invoice)
+			except Exception as we:
+				frappe.log_error(frappe.get_traceback(), "Auto withholding-receipt creation error")
+				wht_receipt = {"status": "error", "message": str(we)}
+
 		return {
 			"status": "ok" if ok else "error",
 			"result": res,
@@ -224,6 +236,7 @@ def register_sales_invoice(sales_invoice):
 			"eims_status": si.custom_eims_status or res.get("status"),
 			"document_number": si.custom_document_number,
 			"qr_code_url": si.get("custom_qr_code_url"),
+			"withholding_receipt": wht_receipt,
 		}
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), "V2 MoR Sales Invoice registration error")
@@ -453,8 +466,9 @@ def _build_invoice_receipt(invoice_name, doctype="Sales Invoice"):
 	receipt.party_name = inv.customer_name
 	receipt.mode_of_payment = "CASH"
 	if inv.payments:
-		mop = (inv.payments[0].mode_of_payment or "CASH").upper()
-		receipt.mode_of_payment = mop if mop in ("CASH", "ADVANCE", "CREDIT") else "CASH"
+		from ethiotel_pos.eims_connector import resolve_mor_payment_mode
+		mop = (inv.payments[0].mode_of_payment or "CASH")
+		receipt.mode_of_payment = resolve_mor_payment_mode(mop) or "CASH"
 	receipt.collected_amount = total_amount
 	receipt.currency = inv.currency
 	receipt.collector_name = inv.owner or "Cashier"
@@ -838,7 +852,8 @@ def check_opening_entry(user):
 def get_pos_profile_data(pos_profile):
 	data = frappe.get_doc("POS Profile", pos_profile).as_dict()
 	# Only offer payment methods the POS can actually send to MoR
-	# (CASH / ADVANCE / CREDIT per rule 7022) and that exist on the profile.
+	# (CASH, CHEQUE, CPO, Local Bank Transfer, SWIFT, Wire Transfer,
+	# Letter of Credit, Card) and that exist on the profile.
 	from ethiotel_pos.eims_connector import resolve_mor_payment_mode
 
 	data["payments"] = [
@@ -1421,7 +1436,7 @@ def _ensure_mop_mor_field():
 			"fieldname": "custom_mor_mode",
 			"fieldtype": "Select",
 			"label": "MoR Payment Mode",
-			"options": "\nCASH\nADVANCE\nCREDIT",
+			"options": "\nCASH\nCHEQUE\nCPO\nLocal Bank Transfer\nSWIFT\nWire Transfer\nLetter of Credit\nCard",
 			"insert_after": "type",
 		}
 	).insert(ignore_permissions=True)
@@ -1443,8 +1458,9 @@ def save_held_order(doc):
 	doc["docstatus"] = 0
 
 	# Validate the payment methods BEFORE the invoice exists — MoR rejects
-	# registrations whose payment mode is not CASH / ADVANCE / CREDIT
-	# (rule 7022), so catch it here while the cashier can still fix it.
+	# registrations whose payment mode is not one of CASH, CHEQUE, CPO,
+	# Local Bank Transfer, SWIFT, Wire Transfer, Letter of Credit, Card,
+	# so catch it here while the cashier can still fix it.
 	try:
 		_ensure_mop_mor_field()
 	except Exception:
@@ -1456,7 +1472,8 @@ def save_held_order(doc):
 		if mode_name and not resolve_mor_payment_mode(mode_name):
 			frappe.throw(
 				f"Payment method <b>{mode_name}</b> cannot be sent to MoR. "
-				f"MoR accepts only CASH, ADVANCE or CREDIT. Ask your administrator "
+				f"MoR accepts only: CASH, CHEQUE, CPO, Local Bank Transfer, SWIFT, "
+				f"Wire Transfer, Letter of Credit, Card. Ask your administrator "
 				f"to open <a href='/app/mode-of-payment/{mode_name}'>{mode_name}</a> "
 				f"and set <b>MoR Payment Mode</b>.",
 				title="Unsupported Payment Method"

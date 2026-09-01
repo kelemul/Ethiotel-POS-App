@@ -40,7 +40,8 @@
   "returned_rnn",
   "receipt_viewport",
   "section_break_sutu",
-  "qr_code_base64"
+  "qr_code_base64",
+  "request_payload"
  ],
  "fields": [
   {
@@ -241,12 +242,17 @@
   {
    "fieldname": "section_break_sutu",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "request_payload",
+   "fieldtype": "Long Text",
+   "label": "Request Payload"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-24 10:54:15.888449",
+ "modified": "2026-08-31 11:33:53.093216",
  "modified_by": "Administrator",
  "module": "Ethio Telecom POS App",
  "name": "EIMS Invoice Receipt",

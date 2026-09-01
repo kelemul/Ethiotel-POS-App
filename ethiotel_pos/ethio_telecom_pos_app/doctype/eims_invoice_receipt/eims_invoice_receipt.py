@@ -5,21 +5,21 @@ from datetime import datetime
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import fmt_money, flt
-from ethiotel_pos.eims_connector import EIMSConnector
+from ethiotel_pos.eims_connector import EIMSConnector, resolve_mor_payment_mode
 import base64
 from frappe.utils import money_in_words
 from frappe.utils import now_datetime
 class EIMSInvoiceReceipt(Document):
     def validate(self):
         
-        if self.mode_of_payment and self.mode_of_payment.upper() not in ["CASH", "ADVANCE", "CREDIT"]:
-            frappe.throw(_("Invalid Mode of Payment. Must be one of: CASH, ADVANCE, CREDIT."))
+        if self.mode_of_payment and not resolve_mor_payment_mode(self.mode_of_payment):
+            frappe.throw(_(
+                "Invalid Mode of Payment. Must be one of: CASH, CHEQUE, CPO, "
+                "Local Bank Transfer, SWIFT, Wire Transfer, Letter of Credit, Card."
+            ))
 
     def before_save(self):
-        # Receipt creation is now triggered only from the Sales Invoice /
-        # POS Invoice MoR task actions — the on-save auto-processing below is
-        # disabled (immutability guard + receipt_counter auto-increment moved
-        # into the explicit generation flow).
+   
         # if self.eims_status == "Active" and not self.is_new():
         #     existing_status = frappe.db.get_value("EIMS Invoice Receipt", self.name, "eims_status")
         #     if existing_status == "Active":
@@ -52,7 +52,7 @@ class EIMSInvoiceReceipt(Document):
         self.party_type = pe.party_type
         self.party = pe.party
         self.party_name = pe.party_name
-        self.mode_of_payment = pe.mode_of_payment.upper() if pe.mode_of_payment and pe.mode_of_payment.upper() in ["CASH","ADVANCE","CREDIT"] else "CASH"
+        self.mode_of_payment = resolve_mor_payment_mode(pe.mode_of_payment) or "CASH"
         self.collected_amount = pe.paid_amount
         self.currency = pe.paid_from_account_currency
         self.receipt_date = pe.posting_date
@@ -154,13 +154,14 @@ class EIMSInvoiceReceipt(Document):
                 "SellerTIN": self.seller_tin,
                 "Invoices": invoice_payload,
                 "TransactionDetails": {
-                    "ModeOfPayment": self.mode_of_payment.upper() if self.mode_of_payment and self.mode_of_payment.upper() in ["CASH","ADVANCE","CREDIT"] else "CASH",
+                    "ModeOfPayment": resolve_mor_payment_mode(self.mode_of_payment) or "CASH",
                     "CollectorName": self.collector_name or "Cashier",
                     "PaymentServiceProvider": self.payment_provider or "Bank",
                     "TransactionNumber": self.transaction_number
                 }
             })
 
+            self.request_payload = payload_data
             response = requests.post(url, data=payload_data, headers=headers, timeout=15)
             res_data = response.json()
             if response.status_code == 200 and res_data.get("statusCode") == 200:

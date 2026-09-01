@@ -55,8 +55,57 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "MoR Tasks",
+   "label": "POS",
    "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tele POS",
+   "link_count": 0,
+   "link_to": "ethiotel-pos",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Customer Details",
+   "link_count": 0,
+   "link_to": "Customer Details",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "POS Invoice",
+   "link_count": 0,
+   "link_to": "POS Invoice",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "POS Opening Entry",
+   "link_count": 0,
+   "link_to": "POS Opening Entry",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "MoR Tasks",
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -104,54 +153,15 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "POS",
-   "link_count": 4,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Tele POS",
+   "label": "Withholding Receipt",
    "link_count": 0,
-   "link_to": "ethiotel-pos",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Customer Details",
-   "link_count": 0,
-   "link_to": "Customer Details",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "POS Invoice",
-   "link_count": 0,
-   "link_to": "POS Invoice",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "POS Opening Entry",
-   "link_count": 0,
-   "link_to": "POS Opening Entry",
+   "link_to": "Withholding Receipt",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
   }
  ],
- "modified": "2026-08-21 16:16:54.850436",
+ "modified": "2026-08-31 15:53:37.648612",
  "modified_by": "Administrator",
  "module": "Ethio Telecom POS App",
  "name": "Tele POS",

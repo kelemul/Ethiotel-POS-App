@@ -1,0 +1,250 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:WHR-{receipt_number}",
+ "creation": "2026-08-31 00:00:00",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "receipt_type",
+  "eims_status",
+  "receipt_number",
+  "receipt_date",
+  "receipt_counter",
+  "manual_receipt_number",
+  "column_break_receipt",
+  "source_system_type",
+  "source_system_number",
+  "seller_tin",
+  "section_break_invoice",
+  "invoice_irn",
+  "currency",
+  "exchange_rate",
+  "section_break_withhold",
+  "withholding_type",
+  "withholding_rate",
+  "column_break_withhold",
+  "pre_tax_amount",
+  "withholding_amount",
+  "section_break_reason",
+  "reason",
+  "section_break_response",
+  "rrn",
+  "mor_receipt_id",
+  "column_break_response",
+  "returned_rnn",
+  "qr_code_base64",
+  "response_log",
+  "section_break_payload",
+  "receipt_viewport",
+  "request_payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "receipt_type",
+   "fieldtype": "Data",
+   "label": "Receipt Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "eims_status",
+   "fieldtype": "Select",
+   "label": "EIRMS Status",
+   "options": "Pending\nActive\nFailed"
+  },
+  {
+   "fieldname": "receipt_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Receipt Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "receipt_date",
+   "fieldtype": "Datetime",
+   "label": "Receipt Date"
+  },
+  {
+   "fieldname": "receipt_counter",
+   "fieldtype": "Int",
+   "label": "Receipt Counter"
+  },
+  {
+   "fieldname": "manual_receipt_number",
+   "fieldtype": "Data",
+   "label": "Manual Receipt Number"
+  },
+  {
+   "fieldname": "column_break_receipt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "source_system_type",
+   "fieldtype": "Data",
+   "label": "Source System Type"
+  },
+  {
+   "fieldname": "source_system_number",
+   "fieldtype": "Data",
+   "label": "Source System Number"
+  },
+  {
+   "fieldname": "seller_tin",
+   "fieldtype": "Data",
+   "label": "Seller TIN"
+  },
+  {
+   "fieldname": "section_break_invoice",
+   "fieldtype": "Section Break",
+   "label": "Invoice Detail"
+  },
+  {
+   "fieldname": "invoice_irn",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Invoice IRN",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "exchange_rate",
+   "fieldtype": "Float",
+   "label": "Exchange Rate",
+   "precision": "6"
+  },
+  {
+   "fieldname": "section_break_withhold",
+   "fieldtype": "Section Break",
+   "label": "Withholding Detail"
+  },
+  {
+   "fieldname": "withholding_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Withhold Type",
+   "options": "\nTWTH\nIWTH",
+   "reqd": 1
+  },
+  {
+   "fieldname": "withholding_rate",
+   "fieldtype": "Float",
+   "label": "Rate",
+   "precision": "6"
+  },
+  {
+   "fieldname": "column_break_withhold",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pre_tax_amount",
+   "fieldtype": "Currency",
+   "label": "PreTax Amount",
+   "options": "currency"
+  },
+  {
+   "fieldname": "withholding_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Withholding Amount",
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_reason",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "section_break_response",
+   "fieldtype": "Section Break",
+   "label": "MoR Response"
+  },
+  {
+   "fieldname": "rrn",
+   "fieldtype": "Data",
+   "label": "RRN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mor_receipt_id",
+   "fieldtype": "Data",
+   "label": "MoR Receipt ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_response",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "returned_rnn",
+   "fieldtype": "Data",
+   "label": "Returned RNN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qr_code_base64",
+   "fieldtype": "Long Text",
+   "label": "QR Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_log",
+   "fieldtype": "Small Text",
+   "label": "Response Log",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_payload",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "receipt_viewport",
+   "fieldtype": "HTML",
+   "label": "Receipt Viewport",
+   "read_only": 1
+  },
+  {
+   "fieldname": "request_payload",
+   "fieldtype": "Long Text",
+   "label": "Request Payload",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-31 16:14:45.835969",
+ "modified_by": "Administrator",
+ "module": "Ethio Telecom POS App",
+ "name": "Withholding Receipt",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "show_name_in_global_search": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
